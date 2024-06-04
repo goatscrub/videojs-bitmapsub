@@ -1,0 +1,17 @@
+{
+  "name": "videojs-vobsub",
+  "author": "gnuk",
+  "version": "0.0.1",
+  "description": "Like codepen - videojs-vobsub",
+  "license": "unknown - please ask author",
+  "private": true,
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^4.3.9"
+  }
+}
