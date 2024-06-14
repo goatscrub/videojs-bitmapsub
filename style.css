@@ -15,3 +15,44 @@ textarea,
 button {
     font-family: inherit;
 }
+
+main {
+    width: 50%;
+    padding-block: 3em;
+    margin-inline: auto;
+}
+
+#vobsub-container {
+    --drift: 0.5vh;
+    display: inline-flex;
+    position: absolute;
+    bottom: var(--drift);
+    padding: 2ch;
+    background-color: #0006;
+    left: 50%;
+    translate: -50%;
+    opacity: 0;
+    transition: opacity 0.1s, bottom 0.2s 0.5s;
+    transform-origin: bottom;
+    border-radius: 3px;
+    z-index: 1;
+    background-color: aqua;
+}
+
+.vjs-user-active #vobsub-container {
+    bottom: calc(var(--drift) + 30px);
+}
+
+#vobsub {
+    display: inline-block;
+    width: 720px;
+    height: 26px;
+    background: url(python.1.vobsub.png) no-repeat;
+    background-color: khaki;
+    /* filter: invert(20%) sepia(100%) saturate(2640%) hue-rotate(300deg) */
+    border: 1px solid crimson;
+}
+
+.vjs-control-bar {
+    z-index: 100;
+}
