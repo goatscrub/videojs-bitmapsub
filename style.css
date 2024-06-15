@@ -36,7 +36,7 @@ main {
     transform-origin: bottom;
     border-radius: 3px;
     z-index: 1;
-    background-color: aqua;
+    /* background-color: aqua; */
 }
 
 .vjs-user-active #vobsub-container {
@@ -45,12 +45,13 @@ main {
 
 #vobsub {
     display: inline-block;
-    width: 720px;
-    height: 26px;
-    background: url(python.1.vobsub.png) no-repeat;
-    background-color: khaki;
-    /* filter: invert(20%) sepia(100%) saturate(2640%) hue-rotate(300deg) */
-    border: 1px solid crimson;
+    /* width: 1920px; */
+    /* height: 26px; */
+    background-image: url(thelma_fre2.1.vobsub.png);
+    background-repeat: no-repeat;
+    filter: invert(100%) sepia(100%) saturate(4000%) hue-rotate(190deg);
+    /* background-color: khaki; */
+    /* border: 1px solid crimson; */
 }
 
 .vjs-control-bar {

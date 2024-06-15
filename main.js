@@ -3,7 +3,7 @@ const options = {
     controls:true,
     controlBar: {pictureInPictureToggle:false},
     // muted: true,
-    autoplay: true,
+    // autoplay: true,
 }
 
 const videojsPlugin = videojs.getPlugin('plugin')
@@ -11,7 +11,7 @@ const videojsPlugin = videojs.getPlugin('plugin')
 class VobSub extends videojsPlugin {
 
     subMenu
-    startupSeek=(9*60)+25
+    startupSeek=(50*60)+10
     vobsubTracks = []
     currentVobsub
 
@@ -38,12 +38,14 @@ class VobSub extends videojsPlugin {
                 this.vobsubTracks.push(tracks[i])
                 const item=new vjsSubsCapsMenuItem(player, {
                         track: {
-                            label:tracks[i].label.split(':')[1],
+                            label:tracks[i].label.split(':')[2],
                             language:tracks[i].language,
                             id:tracks[i].id,
                             default:tracks[i].default,
                         },
                 })
+                // add native vobsubtitle size
+                tracks[i].vobsub = {width:tracks[i].label.split(':')[1]}
                 if (tracks[i].default) {
                     tracks[i].mode = 'hidden'
                     this.currentVobsub=tracks[i]
@@ -66,14 +68,14 @@ class VobSub extends videojsPlugin {
             if (this.activeCues.length) {
                 // active cues starts
                 const chunks=this.activeCues[0].text.split(' ')
-                const image=chunks[0]
-                const subtitle=chunks[1]
-                ; const [subWidth, subHeight] = chunks[1].split(':')[0].split('×')
-                ; const [subDriftY, subDriftX ]=chunks[1].split(':')[1].split('×')
-                vobsub.style.width = `${subWidth}px`
-                vobsub.style.height = `${subHeight}px`
-                vobsub.style.backgroundPositionY = `-${subDriftY}px`
-                vobsub.style.backgroundPositionX = `-${subDriftX}px`
+                const backgroundImage=chunks[0]
+                ; const [width, height] = chunks[1].split(':')[0].split('×')
+                ; const [driftY, driftX ]=chunks[1].split(':').slice(1)
+                vobsub.style.width = `${width}px`
+                vobsub.style.height = `${height}px`
+                vobsub.style.backgroundPositionY = `-${driftY}px`
+                vobsub.style.backgroundPositionX = `-${driftX}px`
+                vobsub.style.backgroundImage=`url(${backgroundImage})`
                 vobsubContainer.el().style.opacity = 1
             } else {
                 // active cues ends
@@ -87,7 +89,7 @@ class VobSub extends videojsPlugin {
 
         player.on('playerresize', e => {
             // const scaleSize=parseFloat(e.target.clientWidth/720).toFixed(2)
-            const scaleSize=(player.textTrackDisplay.dimension('width')/720).toFixed(2)
+            const scaleSize=(player.textTrackDisplay.dimension('width')/this.currentVobsub.vobsub.width).toFixed(2)
             vobsubContainer.el().style.scale=`${scaleSize}`
         })
     }
@@ -138,7 +140,6 @@ function log(things) {
 }
 
 player.on(['canplay', 'ready', 'loadmetadata', 'loadedmetadata', 'loadstart'], e => {
-    // log(e.type)
     if (e.type == 'loadstart') {
         player.vobsub()
     }
