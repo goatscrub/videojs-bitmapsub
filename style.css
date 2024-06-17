@@ -23,10 +23,9 @@ main {
 }
 
 #vobsub-container {
-    --drift: 0.5vh;
     display: inline-flex;
     position: absolute;
-    bottom: var(--drift);
+    /* bottom: var(--drift); */
     padding: 2ch;
     background-color: #0006;
     left: 50%;
@@ -36,21 +35,22 @@ main {
     transform-origin: bottom;
     border-radius: 3px;
     z-index: 1;
-    /* background-color: aqua; */
+    /* background-color: #00ffffaa; */
+    /* border: 3px solid crimson; */
 }
 
 .vjs-user-active #vobsub-container {
-    bottom: calc(var(--drift) + 30px);
+    bottom: 30px;
 }
 
 #vobsub {
     display: inline-block;
-    /* width: 1920px; */
-    /* height: 26px; */
-    background-image: url(thelma_fre2.1.vobsub.png);
     background-repeat: no-repeat;
     filter: invert(100%) sepia(100%) saturate(4000%) hue-rotate(190deg);
-    /* background-color: khaki; */
+    /* width: 1920px; */
+    /* height: 26px; */
+    /* background-image: url(thelma_fre2.1.vobsub.png); */
+    /* background-color: #f0e68c8e; */
     /* border: 1px solid crimson; */
 }
 
