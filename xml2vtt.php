@@ -130,14 +130,7 @@ while (($line = fgets($fp)) !== false) {
         $imagick = new Imagick($matches[1]);
         [$width, $height] = [$imagick->getImageWidth(), $imagick->getImageHeight()];
         $original = sprintf('%d:%d', $width, $height);
-        // $imagick->trimImage(0);
-        // [$croppedWidth, $croppedHeight] = [$imagick->getImageWidth(), $imagick->getImageHeight()];
-        // $imagick->writeImage();
         $imagick->clear();
-        // save max width cropped image encountered on each image, for drift X later use
-        if ($width > $largest) {
-            $largest = $width;
-        }
         // reset drift Y value and update drift X
         if (($imageCounter > 0) && ($imageCounter % $lines) == 0) {
             $drift_y = 0;
@@ -145,7 +138,6 @@ while (($line = fgets($fp)) !== false) {
             $largest = 0;
         }
         // reset drift X value
-        // if (($imageCounter > 0) && (($imageCounter / $lines) % $columns) == 0) {
         if (($imageCounter > 0) && ($imageCounter % ($lines * $columns) == 0)) {
             $drift_x = 0;
             $largest = 0;
@@ -158,17 +150,18 @@ while (($line = fgets($fp)) !== false) {
                 $filename,
                 $width,
                 $height,
-                // $croppedWidth,
-                // $croppedHeight,
                 $drift_y,
                 $drift_x,
                 $original
             )
         );
         // update drift_y value all times
-        // $drift_y += $croppedHeight;
         $drift_y += $height;
         $imageCounter++;
+        // save max width cropped image encountered on each image, for drift X later use
+        if ($width > $largest) {
+            $largest = $width;
+        }
     }
 }
 fclose($fp);
