@@ -10,7 +10,6 @@ count=0
 max_count=4
 
 class DataReader:
-
     def __init__(self, data):
         self.data=data
         self.pointer=0
@@ -31,10 +30,13 @@ class Drawer:
         self.y=0
 
     def draw(self, color, length):
-        self.image.putpixel((self.x, self.y), length)
-        self.x+=length
+        print(color, length)
+        for n in range(length):
+            self.image.putpixel((self.x, self.y), color)
+            self.x+=1
 
     def nextLine(self):
+        self.x=0
         self.y+=1
 
 def readObject(data):
@@ -53,7 +55,7 @@ def readObject(data):
             drawer.nextLine()
             print('------')
             l+=1
-            if ( l > 10 ): break
+            # if ( l > 10 ): break
             continue
 
         if ( byte == b'\x00' ):
@@ -61,9 +63,10 @@ def readObject(data):
             continue
 
         if ( previousAlso ):
-            bits=bin(int.from_bytes(byte))
+            bits=format(int.from_bytes(byte), '#010b')
             witness=bits[2:4]
-            repeat=int('0b'+bits[4:], 2)
+            repeat=format(int(bits[4:], 2), '#010b')
+            print(bits, witness, repeat)
             if ( witness == '00' ):
                 drawer.draw(0, repeat)
                 print('0*{}'.format(repeat))
@@ -83,13 +86,12 @@ def readObject(data):
 
             continue
         else:
-            drawer.draw(int.from_bytes, 1)
+            drawer.draw(int.from_bytes(byte), 1)
             print('#{}'.format(byte))
 
-            # print(bin(int.from_bytes(byte))[2:4])
-            # print(bin(int.from_bytes(byte)), int.from_bytes(byte))
-
     print(l)
+    image.save('/tmp/image.png')
+    image.close()
     sys.exit(132)
 
 def readEnd(data):
