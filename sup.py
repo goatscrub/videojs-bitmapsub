@@ -1,13 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: UTF8 -*-
-import sys
-from PIL import Image
-
-image = Image.new('L', (1920, 1080), 255)
+import sys, os
+from PIL import Image, ImageDraw, ImageShow
 
 supfile=open('tmp/darkwaters.sup', 'rb')
 count=0
-max_count=4
+max_count=64
+
+class ImageViewer(ImageShow.Viewer):
+    def __init__(self, viewer_command):
+        super().__init__()
+        self.command=viewer_command
+
+    def get_command(self, file, **kargs):
+        return '{} {}'.format(self.command, file)
+
+m=ImageViewer('/usr/bin/display')
+m.get_command('prout')
+
+ImageShow.register(m, 0)
 
 class DataReader:
     def __init__(self, data):
@@ -30,69 +41,91 @@ class Drawer:
         self.y=0
 
     def draw(self, color, length):
-        print(color, length)
-        for n in range(length):
-            self.image.putpixel((self.x, self.y), color)
-            self.x+=1
+        # if ( color[0] != 0 or color[0] != 255 ):
+        #     # print(color)
+        #     self.x+=length
+        #     return
+
+        if ( length > 1):
+            # drawing line
+            draw=ImageDraw.Draw(self.image)
+            draw.line((self.x, self.x+length), fill=None, width=1, joint=None)
+        else:
+            # print("here")
+            for n in range(length):
+                self.image.putpixel((self.x+n, self.y), color)
+        self.x+=length
 
     def nextLine(self):
         self.x=0
         self.y+=1
 
-def readObject(data):
+def readObject(image, data):
+    l,max_line,fwidth=0, 8, 25
     print('> read object data')
+    print(data[:32], '\n')
+    print('{:>3} {:10} {:2s} {:3s} {:1s}'.format('ccc', 'bits', 'wt', 'rp', 'o'))
+    print('{:->25}'.format(''))
     data=DataReader(data)
-    l=0
     previousAlso=False
     drawer=Drawer(image)
     while True:
         byte=data.consume(1)
         if ( not byte ): break
 
-        # new line encountered
-        if ( byte == b'\x00' and previousAlso ):
-            previousAlso=False
-            drawer.nextLine()
-            print('------')
-            l+=1
-            # if ( l > 10 ): break
-            continue
-
-        if ( byte == b'\x00' ):
-            previousAlso=True
-            continue
+        bits=format(int.from_bytes(byte), '#010b')
+        witness=bits[2:4]
+        repeat=int(bits[4:], 2)
+        # define default color, completely transparent
+        color=(0, 0)
+        octets=1
 
         if ( previousAlso ):
-            bits=format(int.from_bytes(byte), '#010b')
-            witness=bits[2:4]
-            repeat=format(int(bits[4:], 2), '#010b')
-            print(bits, witness, repeat)
-            if ( witness == '00' ):
-                drawer.draw(0, repeat)
-                print('0*{}'.format(repeat))
+            octets+=1
+            if ( byte == b'\x00' ):
+                # new line encountered
+                drawer.nextLine()
+                # print('{:->25}'.format(''))
+                l+=1
+                # if ( l > max_line ): break
+            elif ( witness == '00' ):
+                # two bytes, default color (transparent with shorter sequence)
+                drawer.draw(color, repeat)
             elif ( witness == '01'):
+                # three bytes, default color (transparent with longer sequence)
                 repeat+=int.from_bytes(data.consume(1))
-                drawer.draw(0, repeat)
-                print('0*{}'.format(repeat))
+                octets+=1
+                drawer.draw(color, repeat)
             elif ( witness == '10'):
-                color=int.from_bytes(data.consume(1))
+                # three bytes, with define color shorter sequence
+                color=(int.from_bytes(data.consume(1)), 255)
+                octets+=1
                 drawer.draw(color, repeat)
-                print('#{}*{}'.format(color, repeat))
             elif ( witness == '11'):
+                # four bytes, with define color longer sequence
                 repeat+=int.from_bytes(data.consume(1))
-                color=int.from_bytes(data.consume(1))
+                color=(int.from_bytes(data.consume(1)), 255)
+                octets+=2
                 drawer.draw(color, repeat)
-                print('#{}*{}'.format(color, repeat))
+            # reset marker
+            previousAlso=False
 
-            continue
+        # marker encountered
+        elif ( byte == b'\x00' ):
+            previousAlso=True
+            color='×××'
+            repeat='×'
+            witness='××'
+
         else:
-            drawer.draw(int.from_bytes(byte), 1)
-            print('#{}'.format(byte))
+            # one byte, isolated colored pixel
+            color=(int.from_bytes(byte), 255)
+            witness='××'
+            repeat=1
+            drawer.draw(color, repeat)
 
+        print(format(f'{color[0]:>3},{color[1]:>3} {bits:>10} {witness:>2} {repeat:<3} {octets:>1}'))
     print(l)
-    image.save('/tmp/image.png')
-    image.close()
-    sys.exit(132)
 
 def readEnd(data):
     print('> end')
@@ -108,11 +141,14 @@ def readODS(data):
     width=int.from_bytes(data.consume(2))
     height=int.from_bytes(data.consume(2))
     objectData=data.consume(dataLength)
-    f=open('/tmp/coin.data', 'bw')
-    f.write(objectData)
-    f.close()
-    readObject(objectData)
-    print('id:{} version:{} lISF:{} dL:{} w:{} h:{}'.format(id, version, lastInSequenceFlag, dataLength, width, height))
+    imageFilename='/tmp/image-{:04d}.png'.format(id)
+    image = Image.new('LA', (width, height), (255, 255))
+    readObject(image, objectData)
+    image.save(imageFilename)
+    image.close()
+    os.system('/usr/bin/sxiv {}'.format(imageFilename))
+    # sys.exit(132)
+    # print('id:{} version:{} lISF:{} dL:{} w:{} h:{}'.format(id, version, lastInSequenceFlag, dataLength, width, height))
 
 def readPDS(data):
     print('> palette')
@@ -212,8 +248,7 @@ def readSegment(n):
 
 while readSegment(count):
     print()
-    # count+=1
-    if ( count > max_count ):
-        break
+    count+=1
+    if ( count > max_count ): break
 
 supfile.close()
