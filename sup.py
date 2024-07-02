@@ -4,6 +4,7 @@ import sys, os
 from PIL import Image, ImageDraw, ImageShow
 
 enable_debug=False
+enable_colorize=False
 try:
     if (sys.argv[1] == '-d'):
         enable_debug=True
@@ -81,7 +82,7 @@ class Drawer:
         if ( length > 1):
             # drawing line
             draw=ImageDraw.Draw(self.image)
-            draw.line([(self.x, self.y), (self.x+length, self.y)], fill=None, width=1, joint=None)
+            draw.line([(self.x, self.y), (self.x+length, self.y)], fill=(color), width=1, joint=None)
         else:
             # print("here")
             for n in range(length):
@@ -91,6 +92,10 @@ class Drawer:
     def nextLine(self):
         self.x=0
         self.y+=1
+
+def colorize(color, alternative):
+    if (enable_colorize): return alternative
+    return color
 
 def readObject(image, data):
     l,max_line,fwidth=1, 1, 25
@@ -109,7 +114,7 @@ def readObject(image, data):
         witness=bits[2:4]
         repeat=int(bits[4:], 2)
         # define default color, completely transparent
-        color=(0, 0)
+        color=colorize((128, 128), (255, 0, 0, 0))
         octets=1
         c_term_color=''
 
@@ -128,6 +133,7 @@ def readObject(image, data):
                 # 000000 00LLLLLL
                 print('blue')
                 c_term_color=c_blue
+                color=colorize(color, (0, 0, 255, 255))
                 drawer.draw(color, repeat)
             elif ( witness == '01'):
                 print('red')
@@ -142,6 +148,7 @@ def readObject(image, data):
                 octets+=1
                 repeat_str+=bits[2:]
                 repeat=int(f'0b{repeat_str}', 2)
+                color=colorize(color, (255, 0, 0, 255))
                 drawer.draw(color, repeat)
             elif ( witness == '10'):
                 c_term_color=c_cyan
@@ -152,7 +159,7 @@ def readObject(image, data):
                 byte=data.consume(1)
                 bits=format(int.from_bytes(byte), '#010b')
                 octets+=1
-                color=(int.from_bytes(byte), 255)
+                color=colorize((int.from_bytes(byte), 255), (0, 255, 255, 255))
                 drawer.draw(color, repeat)
                 # witness and repeat become N/A because of data.consume
                 witness, repeat='xx', '×××'
@@ -172,8 +179,8 @@ def readObject(image, data):
                 debug(locals())
                 byte=data.consume(1)
                 bits=format(int.from_bytes(byte), '#010b')
-                color=(int.from_bytes(byte), 255)
                 octets+=1
+                color=colorize((int.from_bytes(byte), 255), (0, 255, 0, 255))
                 drawer.draw(color, repeat)
                 # witness and repeat become N/A because of data.consume
                 witness, repeat='xx', '×××'
@@ -190,9 +197,9 @@ def readObject(image, data):
 
         else:
             # one byte, isolated colored pixel
-            color=(int.from_bytes(byte), 255)
             witness='××'
             repeat=1
+            color=colorize((int.from_bytes(byte), 255), (255, 0, 255, 255))
             drawer.draw(color, repeat)
 
         debug(locals())
@@ -215,7 +222,10 @@ def readODS(data):
     print('> id:{} version:{} lISF:{} dL:{} w:{} h:{}'.format(id, version, lastInSequenceFlag, dataLength, width, height))
     objectData=data.consume(dataLength)
     imageFilename='/tmp/image-{:04d}.png'.format(ods_count)
-    image = Image.new('LA', (width, height), (255, 0))
+    if (enable_colorize):
+        image = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+    else:
+        image = Image.new('LA', (width, height), (0, 0))
     r=readObject(image, objectData)
     image.save(imageFilename)
     image.close()
