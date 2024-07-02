@@ -3,9 +3,41 @@
 import sys, os
 from PIL import Image, ImageDraw, ImageShow
 
-supfile=open('tmp/darkwaters.sup', 'rb')
+enable_debug=False
+try:
+    if (sys.argv[1] == '-d'):
+        enable_debug=True
+    if (os.path.isfile(sys.argv[-1])):
+        filename=sys.argv[-1]
+    else:
+        print('File does not exist, abort.')
+        sys.exit(1)
+
+except IndexError:
+    pass
+
+c_yellow='\033[0;33m'
+c_white='\033[1;37m'
+c_green='\033[0;32m'
+c_cyan='\033[0;36m'
+c_red='\033[0;31m'
+c_blue='\033[0;34m'
+c_term_reset='\033[0m'
+
+supfile=open(filename, 'rb')
 count=0
 max_count=64
+
+def debug_header():
+    if (enable_debug):
+        header='{:>3} {:>3} {:10} {:2s} {:3s} {:1s} {:5s} {:4s}'.format('ccc', 'aaa', 'bits', 'wt', 'rp', 'B', 'bytes', 'xpos')
+        sep=len(header)*'-'
+        return f'{header}\n{sep}'
+
+def debug(locale_vars):
+    if (enable_debug):
+        print(format(f'{locale_vars['c_term_color']}{locale_vars['color'][0]:>3},{locale_vars['color'][1]:>3} {locale_vars['bits']:>10} {locale_vars['witness']:>2} {locale_vars['repeat']:<3} {locale_vars['octets']:>1} {str(locale_vars['byte'])[2:-1]:5s} {locale_vars['drawer'].x}{c_term_reset}'))
+
 
 class ImageViewer(ImageShow.Viewer):
     def __init__(self, viewer_command):
@@ -49,7 +81,7 @@ class Drawer:
         if ( length > 1):
             # drawing line
             draw=ImageDraw.Draw(self.image)
-            draw.line((self.x, self.x+length), fill=None, width=1, joint=None)
+            draw.line([(self.x, self.y), (self.x+length, self.y)], fill=None, width=1, joint=None)
         else:
             # print("here")
             for n in range(length):
@@ -61,11 +93,11 @@ class Drawer:
         self.y+=1
 
 def readObject(image, data):
-    l,max_line,fwidth=0, 8, 25
+    l,max_line,fwidth=1, 1, 25
+
     print('> read object data')
     print(data[:32], '\n')
-    print('{:>3} {:10} {:2s} {:3s} {:1s}'.format('ccc', 'bits', 'wt', 'rp', 'o'))
-    print('{:->25}'.format(''))
+    print(debug_header())
     data=DataReader(data)
     previousAlso=False
     drawer=Drawer(image)
@@ -79,6 +111,7 @@ def readObject(image, data):
         # define default color, completely transparent
         color=(0, 0)
         octets=1
+        c_term_color=''
 
         if ( previousAlso ):
             octets+=1
@@ -87,34 +120,72 @@ def readObject(image, data):
                 drawer.nextLine()
                 # print('{:->25}'.format(''))
                 l+=1
+                c_term_color=c_white
+                # if ( l > max_line ): return False
                 # if ( l > max_line ): break
             elif ( witness == '00' ):
                 # two bytes, default color (transparent with shorter sequence)
+                # 000000 00LLLLLL
+                print('blue')
+                c_term_color=c_blue
                 drawer.draw(color, repeat)
             elif ( witness == '01'):
+                print('red')
+                c_term_color=c_red
                 # three bytes, default color (transparent with longer sequence)
-                repeat+=int.from_bytes(data.consume(1))
+                # 00000000 00LLLLLL LLLLLLLL
+                color=('×××', '×××')
+                debug(locals())
+                repeat_str=bits[4:]
+                byte=data.consume()
+                bits=format(int.from_bytes(byte), '#010b')
                 octets+=1
+                repeat_str+=bits[2:]
+                repeat=int(f'0b{repeat_str}', 2)
                 drawer.draw(color, repeat)
             elif ( witness == '10'):
+                c_term_color=c_cyan
                 # three bytes, with define color shorter sequence
-                color=(int.from_bytes(data.consume(1)), 255)
+                # 000000 00LLLLLL CCCCCCCC
+                color=('×××', '×××')
+                debug(locals())
+                byte=data.consume(1)
+                bits=format(int.from_bytes(byte), '#010b')
                 octets+=1
+                color=(int.from_bytes(byte), 255)
                 drawer.draw(color, repeat)
+                # witness and repeat become N/A because of data.consume
+                witness, repeat='xx', '×××'
             elif ( witness == '11'):
                 # four bytes, with define color longer sequence
-                repeat+=int.from_bytes(data.consume(1))
-                color=(int.from_bytes(data.consume(1)), 255)
-                octets+=2
+                # 00000000 00LLLLLL LLLLLL CCCCCCCC
+                c_term_color=c_green
+                color=('×××', '×××')
+                debug(locals())
+                repeat_str=bits[4:]
+                byte=data.consume(1)
+                bits=format(int.from_bytes(byte), '#010b')
+                repeat_str+=bits[2:]
+                repeat=int(f'0b{repeat_str}', 2)
+                # print(repeat_str)
+                octets+=1
+                debug(locals())
+                byte=data.consume(1)
+                bits=format(int.from_bytes(byte), '#010b')
+                color=(int.from_bytes(byte), 255)
+                octets+=1
                 drawer.draw(color, repeat)
+                # witness and repeat become N/A because of data.consume
+                witness, repeat='xx', '×××'
             # reset marker
             previousAlso=False
 
         # marker encountered
         elif ( byte == b'\x00' ):
+            c_term_color=c_yellow
             previousAlso=True
-            color='×××'
-            repeat='×'
+            color=('×××', '×××')
+            repeat='×××'
             witness='××'
 
         else:
@@ -124,7 +195,7 @@ def readObject(image, data):
             repeat=1
             drawer.draw(color, repeat)
 
-        print(format(f'{color[0]:>3},{color[1]:>3} {bits:>10} {witness:>2} {repeat:<3} {octets:>1}'))
+        debug(locals())
     print(l)
 
 def readEnd(data):
@@ -132,6 +203,7 @@ def readEnd(data):
     data=DataReader(data)
 
 def readODS(data):
+    global ods_count
     print('> object')
     data=DataReader(data)
     id=int.from_bytes(data.consume(2))
@@ -140,32 +212,47 @@ def readODS(data):
     dataLength=int.from_bytes(data.consume(3))
     width=int.from_bytes(data.consume(2))
     height=int.from_bytes(data.consume(2))
+    print('> id:{} version:{} lISF:{} dL:{} w:{} h:{}'.format(id, version, lastInSequenceFlag, dataLength, width, height))
     objectData=data.consume(dataLength)
-    imageFilename='/tmp/image-{:04d}.png'.format(id)
-    image = Image.new('LA', (width, height), (255, 255))
-    readObject(image, objectData)
+    imageFilename='/tmp/image-{:04d}.png'.format(ods_count)
+    image = Image.new('LA', (width, height), (255, 0))
+    r=readObject(image, objectData)
     image.save(imageFilename)
     image.close()
-    os.system('/usr/bin/sxiv {}'.format(imageFilename))
-    # sys.exit(132)
-    # print('id:{} version:{} lISF:{} dL:{} w:{} h:{}'.format(id, version, lastInSequenceFlag, dataLength, width, height))
+    # os.system('/usr/bin/display {}'.format(imageFilename))
+    if ( not r ): input()
 
 def readPDS(data):
+    palette=[]
     print('> palette')
     data=DataReader(data)
-    paletteID=int.from_bytes(data.consume(1))
-    paletteVersionNumber=int.from_bytes(data.consume(1))
-    c=0
+    id=int.from_bytes(data.consume(1))
+    version=int.from_bytes(data.consume(1))
+    # c=0
     while True:
-        paletteEntryID=int.from_bytes(data.consume(1))
-        if ( not paletteEntryID ): break
+        entryID=int.from_bytes(data.consume(1))
+        if ( not entryID ): break
         luminance=int.from_bytes(data.consume(1))
         colorDifferenceRed=int.from_bytes(data.consume(1))
         colorDifferenceBlue=int.from_bytes(data.consume(1))
         alpha=int.from_bytes(data.consume(1))
-        c+=1
-        # print('pID:{} pVN:{} pEID:{} l:{} cDR:{} cDB:{} a:{} '.format(paletteID, paletteVersionNumber, paletteEntryID, luminance, colorDifferenceRed, colorDifferenceBlue, alpha))
-    print('number of palette: {}'.format(c))
+        # c+=1
+        palette.append((id, version, entryID, luminance, colorDifferenceRed, colorDifferenceBlue, alpha))
+        # print('pID:{} pVN:{} pEID:{} l:{} cDR:{} cDB:{} a:{} '.format(id, paletteVersionNumber, paletteEntryID, luminance, colorDifferenceRed, colorDifferenceBlue, alpha))
+    print('number of palette: {}'.format(len(palette)))
+    # hexPalette(palette)
+    # print(palette)
+
+def hexPalette(palette):
+    f=open('/tmp/palette.htm', 'w')
+    f.write('<html><head><link rel="stylesheet" href="file:///home/gnuk/workflow/videojs-vobsub/palette.css"></head><body>')
+    for c in palette:
+        r,v,b= (int(c[3]+1.402*(c[4]-128)), int(c[3]-0.34414*(c[5]-128)-0.71414*(c[4]-128)), int(c[3]+1.772*(c[5]-128)))
+        d='<span style="background:#{0}{1}{2}{3:>02};">#{0}{1}{2}{3:>02}</span>\n'.format(hex(r)[2:], hex(v)[2:], hex(b)[2:], hex(c[6])[2:])
+        f.write(d)
+    f.write('</body></html>')
+    f.flush()
+    f.close()
 
 def readWDS(data):
     print('> window')
@@ -206,6 +293,7 @@ def readPCS(data):
     # print(data.pointer)
 
 def readSegment(n):
+    global ods_count
     header=supfile.read(2)
     if ( not header ): return False
     print('.segment: {}'.format(n+1))
@@ -219,13 +307,13 @@ def readSegment(n):
     segtype=supfile.read(1)
     segsize=supfile.read(2)
     subdata=supfile.read(int.from_bytes(segsize))
-    # print('{}({})'.format(segtype, str(int.from_bytes(segsize))))
 
     if ( segtype == b'\x14' ):
         segtype='PDS'
         readPDS(subdata)
     elif ( segtype == b'\x15' ):
         segtype='ODS'
+        ods_count+=1
         readODS(subdata)
     elif ( segtype == b'\x16' ):
         segtype='PCS'
@@ -242,10 +330,9 @@ def readSegment(n):
         sys.exit(1)
 
     # always 0
-    #print(dts)
-    #print(str(segsize))
     return True
 
+ods_count=0
 while readSegment(count):
     print()
     count+=1
