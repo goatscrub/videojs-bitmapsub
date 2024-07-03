@@ -1,0 +1,247 @@
+<html>
+<head><title>Packetized Elementary Stream Headers</title>
+    <style>
+        body {
+            background:white;
+            font:16px sans-serif;
+            color:#282828;
+        }
+
+        table {
+            border-collapse: collapse;
+            font-family: monospace;
+            border:1px solid #282828;
+        }
+
+        th {
+            /* background:palegoldenrod; */
+        }
+
+        th, td {
+            padding: 0.25em 0.5em;
+        }
+        .blue {
+            background-color: palegoldenrod;
+        }
+        .green{
+            background-color: palegreen;
+        }
+    </style>
+</head>
+
+<body>
+<h2>Packetized Elementary Stream Headers</h2>
+Depending on the Stream ID, a Packetized Elementary Stream (PES) header may contain various components.
+<h3>The header</h3>
+<table>
+<tr><th>byte 0</th><th>byte 1</th><th>byte 2</th><th>byte 3</th><th>byte 4</th><th>byte 5</th></tr>
+<tr><th class="blue" colspan=3>0000 0000 0000 0000 0000 0001<br>Start code</th>
+    <td class="green">Stream ID</td>
+    <td class="green" colspan=2>PES packet length</td></tr>
+</table>
+Stream ID's which pertain to DVD
+<table>
+<tr><th>Stream ID</th><th>Stream type</th><th>extension present?</th></tr>
+<tr><td>1011 1101<br>0xBD</td><td>Private stream 1 (non MPEG audio, subpictures)</td><td>Yes</td></tr>
+<tr><td>1011 1110<br>0xBE</td><td>Padding stream</td><td>No</td></tr>
+<tr><td>1011 1111<br>0xBF</td><td>Private stream 2 (navigation data)</td><td>No</td></tr>
+<tr><td>110x xxxx<br>0xC0 - 0xDF</td><td>MPEG-1 or MPEG-2 audio stream number x xxxx
+    <br>note: DVD allows only 8 audio streams</td><td>Yes</td></tr>
+<tr><td>1110 xxxx<br>0xE0 - 0xEF</td><td>MPEG-1 or MPEG-2 video stream number xxxx
+    <br>note: DVD allows only 1 video stream</td><td>Yes</td></tr>
+
+</table>
+<h3>The extension</h3>
+<table>
+<tr><th colspan=8><center>byte 6</th><th colspan=8><center>byte 7</th>
+    <th colspan=8><center>byte 8</th></tr>
+<tr><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+</tr>
+<tr><th class="blue" colspan=2>10</th>
+    <td class="green" colspan=2>PES scrambling control</td>
+    <td class="green">PES priority</td>
+    <td class="green">data alignment indicator</td>
+    <td class="green">copyright</td>
+    <td class="green">original or copy</td>
+    <td class="green" colspan=2>PTS DTS flags</td>
+    <td class="green">ESCR flag</td>
+    <td class="green">ES rate flag</td>
+    <td class="green">DSM trick mode flag</td>
+    <td class="green">additional copy info flag</td>
+    <td class="green">PES CRC flag</td>
+    <td class="green">PES extension flag</td>
+    <td class="green" colspan=8>PES header data length</td>
+</tr>
+</table>
+The bit fields of the basic extension:
+<p>PES scrambling control -- 00 = not scrambled, others are user defined.
+<p>PES priority -- provides 2 priority levels, 0 and 1.
+<p>data alignment indicator -- if set to 1 indicates that the PES packet header is immediately
+    followed by the video start code or audio syncword.
+<p>copyright -- 1 = packet contains copyrighted material.
+<p>original or copy -- 1 = original, 0 = copy.
+<p>PTS DTS flags -- Presentation Time Stamp / Decode Time Stamp.
+    00 = no PTS or DTS data present, 01 is forbidden.
+    <br>if set to 10 the following data is appended to the header data field:
+<table>
+<tr><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+</tr>
+<tr><th class="blue" colspan=4>0010</th>
+    <td class="green" colspan=3><center>PTS 32..30</td>
+    <th class="blue">1</th>
+    <td class="green" colspan=15><center>PTS 29..15</td>
+    <th class="blue">1</th>
+    <td class="green" colspan=15><center>PTS 14..00</td>
+    <th class="blue">1</th>
+</tr>
+</table>
+
+PTS DTS flags -- if set to 11 the following data is appended to the header data field:
+<table>
+<tr><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+</tr>
+<tr><th class="blue" colspan=4>0011</th>
+    <td class="green" colspan=3><center>PTS 32..30</td>
+    <th class="blue">1</th>
+    <td class="green" colspan=15><center>PTS 29..15</td>
+    <th class="blue">1</th>
+    <td class="green" colspan=15><center>PTS 14..00</td>
+    <th class="blue">1</th>
+</tr>
+<tr><th class="blue" colspan=4>0001</th>
+    <td class="green" colspan=3><center>DTS 32..30</td>
+    <th class="blue">1</th>
+    <td class="green" colspan=15><center>DTS 29..15</td>
+    <th class="blue">1</th>
+    <td class="green" colspan=15><center>DTS 14..00</td>
+    <th class="blue">1</th>
+</tr>
+</table>
+presentation and decoder time stamps use the 90KHz clock (SCR / 300)
+
+<p>ESCR -- if set to 1 the following data is appended to the header data field:
+<table>
+<tr><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+</tr>
+<tr><th class="blue" colspan=2>00</th>
+    <td class="green" colspan=3><center>ESCR base 32..30</td>
+    <th class="blue">1</th>
+    <td class="green" colspan=15><center>ESCR base 29..15</td>
+    <th class="blue">1</th>
+    <td class="green" colspan=15><center>ESCR base 14..00</td>
+    <th class="blue">1</th>
+    <td class="green" colspan=9><center>ESCR ext</td>
+    <th class="blue">1</th>
+</tr>
+</table>
+This is the Elementary Stream Clock Reference, used if the stream and system levels are not synchronized
+(i.e. ESCR differs from SCR in the PACK header).
+
+<p>ES rate -- if set to 1 the following data is appended to the header data field:
+<table>
+<tr><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+</tr>
+<tr><th class="blue">1</th>
+    <td class="green" colspan=22><center>ES rate</td>
+    <th class="blue">1</th>
+</tr>
+</table>
+The rate at which data is delivered for this stream, in units of 50 bytes/second.
+
+<p>DSM trick mode - not used by DVD
+
+<p>additional copy info -- if set to 1 the following data is appended to the header data field:
+<table border=1>
+<tr><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+</tr>
+<tr><th class="blue">1</th>
+    <td class="green" colspan=7><center>additional copy info</td>
+</tr>
+</table>
+
+<p>PES CRC flag -- if set to 1 the following data is appended to the header data field:
+<table>
+<tr><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+</tr>
+<tr><td class="green" colspan=22><center>previous PES packet CRC</td></tr>
+</table>
+The polynomial used is X<sup>16</sup> + X<sup>12</sup> + X<sup>5</sup> + 1
+
+<p>PES extension flag -- if set to 1 the following data is appended to the header data field:
+<table>
+<tr><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+</tr>
+<tr><td class="green"><center>PES private data flag</td>
+    <td class="green"><center>pack header field flag</td>
+    <td class="green"><center>program packet sequence counter flag</td>
+    <td class="green"><center>P-STD buffer flag</td>
+    <th class="blue" colspan=3>111</th>
+    <td class="green"><center>PES extension flag 2</td>
+</tr>
+</table>
+The bit fields of the first extension:
+<p>PES private data flag -- if set to 1 16 bytes of user defined data is appended to the header data field.
+<p>pack header field flag -- if set to 1 the 8-bit pack field length value is appended to the header data field.
+<p>program packet sequence counter flag -- if set to 1 the following data is appended to the header data field:
+<table>
+<tr><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+</tr>
+<tr><th class="blue">1</th>
+    <td class="green" colspan=7><center>packet sequence counter</td>
+    <th class="blue">1</th>
+    <td class="green"><center>MPEG1_MPEG2 identifier</td>
+    <td class="green" colspan=6><center>original stuffing length</td>
+</tr>
+</table>
+
+<p>P-STD buffer flag -- if set to 1 the following data is appended to the header data field:
+<table>
+<tr><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+</tr>
+<tr><th class="blue" colspan=2>01</th>
+    <td class="green"><center>P-STD buffer scale<br>0 = 128 bytes<br>1 = 1024 bytes</td>
+    <td class="green" colspan=13><center>P-STD buffer size</td>
+</tr>
+</table>
+
+<p>PES extension flag 2 -- if set to 1 the following data is appended to the header data field:
+<table>
+<tr><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+    <th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th>1</th><th>0</th>
+</tr>
+<tr><th class="blue">1</th>
+    <td class="green" colspan=7><center>PES extension field length</td>
+    <td class="green" colspan=8><center>reserved</td>
+</tr>
+</table>
+Which is then followed by the indicated number of bytes.
+
+<h3>The rest of the packet</h3>
+Following all the extension data are optional stuffing bytes (0xFF), which are included
+in the header data length, and then the payload.
+<br>In the case of private streams the first byte of the payload is the sub-stream number.
+
+<p>DVD-Video home
+
+</body>
+</html>
