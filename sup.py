@@ -2,6 +2,7 @@
 # -*- coding: UTF8 -*-
 import sys, os
 from PIL import Image, ImageDraw, ImageShow
+from collections import namedtuple
 
 enable_debug=False
 enable_colorize=False
@@ -78,6 +79,8 @@ class Drawer:
         #     # print(color)
         #     self.x+=length
         #     return
+        # if (color == (255, 255)):
+            # color=(0, 0)
 
         if ( length > 1):
             # drawing line
@@ -126,6 +129,9 @@ def readObject(image, data):
                 # print('{:->25}'.format(''))
                 l+=1
                 c_term_color=c_white
+                color=('×××', '×××')
+                witness='××'
+                repeat='×××'
                 # if ( l > max_line ): return False
                 # if ( l > max_line ): break
             elif ( witness == '00' ):
@@ -209,7 +215,7 @@ def readEnd(data):
     print('> end')
     data=DataReader(data)
 
-def readODS(data):
+def readODS(data, palette):
     global ods_count
     print('> object')
     data=DataReader(data)
@@ -225,16 +231,23 @@ def readODS(data):
     if (enable_colorize):
         image = Image.new('RGBA', (width, height), (0, 0, 0, 0))
     else:
-        image = Image.new('LA', (width, height), (0, 0))
+        # image = Image.new('LA', (width, height), (0, 0))
+        image = Image.new('PA', (width, height), (0, 0))
+        image.putpalette(palette)
     r=readObject(image, objectData)
-    image.save(imageFilename)
+    # image.save(imageFilename)
+    image.convert('RGB')
+    image.save('/tmp/coin.png')
+    image.show()
     image.close()
     # os.system('/usr/bin/display {}'.format(imageFilename))
     if ( not r ): input()
 
+ColorYUV=namedtuple('ColorYUV', 'y cr cb a')
+
 def readPDS(data):
-    palette=[]
     print('> palette')
+    palette=[ColorYUV(0, 0, 0, 0)]*256
     data=DataReader(data)
     id=int.from_bytes(data.consume(1))
     version=int.from_bytes(data.consume(1))
@@ -242,16 +255,17 @@ def readPDS(data):
     while True:
         entryID=int.from_bytes(data.consume(1))
         if ( not entryID ): break
-        luminance=int.from_bytes(data.consume(1))
-        colorDifferenceRed=int.from_bytes(data.consume(1))
-        colorDifferenceBlue=int.from_bytes(data.consume(1))
-        alpha=int.from_bytes(data.consume(1))
+        # palette=Palette(*data.consume(4))
+        palette[entryID]=ColorYUV(*data.consume(4))
+        # luminance=int.from_bytes(data.consume(1))
+        # colorDifferenceRed=int.from_bytes(data.consume(1))
+        # colorDifferenceBlue=int.from_bytes(data.consume(1))
+        # alpha=int.from_bytes(data.consume(1))
         # c+=1
-        palette.append((id, version, entryID, luminance, colorDifferenceRed, colorDifferenceBlue, alpha))
         # print('pID:{} pVN:{} pEID:{} l:{} cDR:{} cDB:{} a:{} '.format(id, paletteVersionNumber, paletteEntryID, luminance, colorDifferenceRed, colorDifferenceBlue, alpha))
     print('number of palette: {}'.format(len(palette)))
     # hexPalette(palette)
-    # print(palette)
+    return palette
 
 def hexPalette(palette):
     f=open('/tmp/palette.htm', 'w')
@@ -302,6 +316,24 @@ def readPCS(data):
     print('nOCO:{} oID:{} wID:{} oCf:{} oHP:{} oVP:{} oCHP:{} oCVP:{} oCW:{} oCHP:{}'.format(numberOfCompositionObjects, objectID, windowID, objectCroppedFlag, objectHorizontalPosition, objectVerticalPosition, objectCroppingHorizontalPosition, objectCroppingVerticalPosition, objectCroppingWidth, objectCroppingHeightPosition))
     # print(data.pointer)
 
+ColorRGB=namedtuple('ColorRGB', 'r g b')
+
+def validateRange(value):
+    if (value < 0): return 0
+    if (value > 255): return 255
+    return value
+
+def yuv2rgb(yuv):
+    rgb=[]
+    for c in yuv:
+        valid=list(map(validateRange, (
+                int(c.y+1.402*(c.cr-128)),
+                int(c.y-0.34414*(c.cb-128)-0.71414*(c.cr-128)),
+                int(c.y+1.772*(c.cb-128))
+                )))
+        rgb.append(ColorRGB(*valid))
+    return rgb
+
 def readSegment(n):
     global ods_count
     header=supfile.read(2)
@@ -317,14 +349,16 @@ def readSegment(n):
     segtype=supfile.read(1)
     segsize=supfile.read(2)
     subdata=supfile.read(int.from_bytes(segsize))
+    palette=[]
 
     if ( segtype == b'\x14' ):
         segtype='PDS'
-        readPDS(subdata)
+        palette=readPDS(subdata)
+        palette=yuv2rgb(palette)
     elif ( segtype == b'\x15' ):
         segtype='ODS'
         ods_count+=1
-        readODS(subdata)
+        readODS(subdata, palette)
     elif ( segtype == b'\x16' ):
         segtype='PCS'
         readPCS(subdata)
