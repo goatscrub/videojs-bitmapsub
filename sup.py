@@ -1,22 +1,38 @@
 #!/usr/bin/env python3
 # -*- coding: UTF8 -*-
-import sys, os
+# most information was collected from:
+# https://blog.thescorpius.com/index.php/2017/07/15/presentation-graphic-stream-sup-files-bluray-subtitle-format/
+# find a copy into doc sub folder
+
+import sys, os, itertools, argparse
 from PIL import Image, ImageDraw, ImageShow
 from collections import namedtuple
 
-enable_debug=False
-enable_colorize=False
-try:
-    if (sys.argv[1] == '-d'):
-        enable_debug=True
-    if (os.path.isfile(sys.argv[-1])):
-        filename=sys.argv[-1]
-    else:
-        print('File does not exist, abort.')
-        sys.exit(1)
+cliParser=argparse.ArgumentParser(
+    prog='sup.py',
+    description='PGS .sup file reader',
+    epilog='have bien le fun'
+    )
+cliParser.add_argument('filename')
+cliParser.add_argument('-c', '--colorize', action='store_true', default='store_false')
+cliParser.add_argument('-d', '--debug', action='store_true', default='store_false')
+cliArgs=cliParser.parse_args()
 
-except IndexError:
-    pass
+enable_debug=cliArgs.debug
+enable_colorize=cliArgs.colorize
+if (os.path.isfile(cliArgs.filename)):
+    filename=cliArgs.filename
+    supfile=open(filename, 'rb')
+else:
+    print(f'File \'{cliArgs.filename}\' does not exist, abort.')
+    sys.exit(1)
+
+# check header
+if ( supfile.read(2) != b'PG' ):
+    print('Wrong header file, this file does not seems to be a sup file, abort.')
+    sys.exit(1)
+else:
+    supfile.seek(0)
 
 c_yellow='\033[0;33m'
 c_white='\033[1;37m'
@@ -26,7 +42,6 @@ c_red='\033[0;31m'
 c_blue='\033[0;34m'
 c_term_reset='\033[0m'
 
-supfile=open(filename, 'rb')
 count=0
 max_count=64
 
@@ -73,199 +88,102 @@ class Drawer:
         self.image=image
         self.x=0
         self.y=0
+        self.draw=ImageDraw.Draw(self.image)
 
-    def draw(self, color, length):
-        # if ( color[0] != 0 or color[0] != 255 ):
-        #     # print(color)
-        #     self.x+=length
-        #     return
-        # if (color == (255, 255)):
-            # color=(0, 0)
-
-        if ( length > 1):
-            # drawing line
-            draw=ImageDraw.Draw(self.image)
-            draw.line([(self.x, self.y), (self.x+length, self.y)], fill=(color), width=1, joint=None)
-        else:
-            # print("here")
-            for n in range(length):
-                self.image.putpixel((self.x+n, self.y), color)
+    def drawLine(self, color, length):
+        # print(color, length)
+        # drawing line
+        self.draw.line(
+            [(self.x, self.y), (self.x+length, self.y)],
+            fill=(color), width=1, joint=None
+        )
         self.x+=length
 
     def nextLine(self):
         self.x=0
         self.y+=1
 
+# image=Image.new('P', (100,100), 255)
+# drawer=ImageDraw.Draw(image)
+# drawer.line((0, 10), fill=0, width=1, joint=None)
+# image.putpalette((255,0,0))
+# image.save('/tmp/coin.png')
+# image.close()
+
+def readObject(image, bytes):
+    # C: color, L: length, 0: default color
+    # 1 byte : CCCCCCCC
+    # 2 bytes: 00000000 00LLLLLL
+    # 3 bytes: 00000000 01LLLLLL LLLLLLLL
+    # 3 bytes: 00000000 10LLLLLL CCCCCCCC
+    # 4 bytes: 00000000 11LLLLLL LLLLLLLL CCCCCCCC
+    # 2 bytes: 00000000 00000000 end of line
+
+    drawer=Drawer(image)
+    # bytes_split=[ '{:02x}'.format(bytes[n]) for n in range(0, len(bytes[0:100]))]
+    # for n in range(0, len(bytes_split)):
+    #     if ( (n % 10) == 0):
+    #         print('')
+    #     else:
+    #         print(f'{bytes_split[n:n+10]}')
+
+    n=0
+    while n < len(bytes):
+        # print('bytes: ', bytes[n:n+4])
+        if (bytes[n]):
+            # one byte, isolated colored pixel
+            length=0
+            color=bytes[n]
+            drawer.drawLine(color, length)
+            # shift byte position
+            n+=1
+        else:
+            # define default color
+            color=255
+            # keep witness and go to next byte
+            witness=bytes[n]
+            n+=1
+            # print('bytes: ', bytes[n:n+4])
+            if witness == 0:
+                # new line encountered
+                drawer.nextLine()
+                n+=1
+            elif witness < 64:
+                # two bytes, default color with shorter sequence
+                # 000000 00LLLLLL
+                length=witness
+                drawer.drawLine(color, length)
+                n+=1
+            elif witness < 128:
+                # three bytes, default color with longer sequence
+                # 00000000 01LLLLLL LLLLLLLL
+                length=((witness-64)<<8)+bytes[n+1]
+                # print('>> ', length)
+                drawer.drawLine(color, length)
+                n+=2
+            elif witness < 192:
+                # three bytes, with define color shorter sequence
+                # 000000 10LLLLLL CCCCCCCC
+                color=bytes[n+1]
+                length=witness-128
+                # print('>>> ', length)
+                drawer.drawLine(color, length)
+                n+=2
+            else:
+                # four bytes, with define color longer sequence
+                # 00000000 11LLLLLL LLLLLLLL CCCCCCCC
+                # print('w: ', witness)
+                # print('b: ', bytes[n+1])
+                color=bytes[n+2]
+                length=((witness-192)<<8)+bytes[n+1]
+                # print('l: ', length)
+                # print('>>>> ', length)
+                drawer.drawLine(color, length)
+                n+=3
+
 def colorize(color, alternative):
     if (enable_colorize): return alternative
     return color
-
-def readObject(image, data):
-    l,max_line,fwidth=1, 1, 25
-
-    print('> read object data')
-    print(data[:32], '\n')
-    print(debug_header())
-    data=DataReader(data)
-    previousAlso=False
-    drawer=Drawer(image)
-    while True:
-        byte=data.consume(1)
-        if ( not byte ): break
-
-        bits=format(int.from_bytes(byte), '#010b')
-        witness=bits[2:4]
-        repeat=int(bits[4:], 2)
-        # define default color, completely transparent
-        color=colorize((128, 128), (255, 0, 0, 0))
-        octets=1
-        c_term_color=''
-
-        if ( previousAlso ):
-            octets+=1
-            if ( byte == b'\x00' ):
-                # new line encountered
-                drawer.nextLine()
-                # print('{:->25}'.format(''))
-                l+=1
-                c_term_color=c_white
-                color=('×××', '×××')
-                witness='××'
-                repeat='×××'
-                # if ( l > max_line ): return False
-                # if ( l > max_line ): break
-            elif ( witness == '00' ):
-                # two bytes, default color (transparent with shorter sequence)
-                # 000000 00LLLLLL
-                print('blue')
-                c_term_color=c_blue
-                color=colorize(color, (0, 0, 255, 255))
-                drawer.draw(color, repeat)
-            elif ( witness == '01'):
-                print('red')
-                c_term_color=c_red
-                # three bytes, default color (transparent with longer sequence)
-                # 00000000 00LLLLLL LLLLLLLL
-                color=('×××', '×××')
-                debug(locals())
-                repeat_str=bits[4:]
-                byte=data.consume()
-                bits=format(int.from_bytes(byte), '#010b')
-                octets+=1
-                repeat_str+=bits[2:]
-                repeat=int(f'0b{repeat_str}', 2)
-                color=colorize(color, (255, 0, 0, 255))
-                drawer.draw(color, repeat)
-            elif ( witness == '10'):
-                c_term_color=c_cyan
-                # three bytes, with define color shorter sequence
-                # 000000 00LLLLLL CCCCCCCC
-                color=('×××', '×××')
-                debug(locals())
-                byte=data.consume(1)
-                bits=format(int.from_bytes(byte), '#010b')
-                octets+=1
-                color=colorize((int.from_bytes(byte), 255), (0, 255, 255, 255))
-                drawer.draw(color, repeat)
-                # witness and repeat become N/A because of data.consume
-                witness, repeat='xx', '×××'
-            elif ( witness == '11'):
-                # four bytes, with define color longer sequence
-                # 00000000 00LLLLLL LLLLLL CCCCCCCC
-                c_term_color=c_green
-                color=('×××', '×××')
-                debug(locals())
-                repeat_str=bits[4:]
-                byte=data.consume(1)
-                bits=format(int.from_bytes(byte), '#010b')
-                repeat_str+=bits[2:]
-                repeat=int(f'0b{repeat_str}', 2)
-                # print(repeat_str)
-                octets+=1
-                debug(locals())
-                byte=data.consume(1)
-                bits=format(int.from_bytes(byte), '#010b')
-                octets+=1
-                color=colorize((int.from_bytes(byte), 255), (0, 255, 0, 255))
-                drawer.draw(color, repeat)
-                # witness and repeat become N/A because of data.consume
-                witness, repeat='xx', '×××'
-            # reset marker
-            previousAlso=False
-
-        # marker encountered
-        elif ( byte == b'\x00' ):
-            c_term_color=c_yellow
-            previousAlso=True
-            color=('×××', '×××')
-            repeat='×××'
-            witness='××'
-
-        else:
-            # one byte, isolated colored pixel
-            witness='××'
-            repeat=1
-            color=colorize((int.from_bytes(byte), 255), (255, 0, 255, 255))
-            drawer.draw(color, repeat)
-
-        debug(locals())
-    print(l)
-
-def readEnd(data):
-    print('> end')
-    data=DataReader(data)
-
-def readODS(data, palette):
-    global ods_count
-    print('> object')
-    data=DataReader(data)
-    id=int.from_bytes(data.consume(2))
-    version=int.from_bytes(data.consume(1))
-    lastInSequenceFlag=data.consume(1)
-    dataLength=int.from_bytes(data.consume(3))
-    width=int.from_bytes(data.consume(2))
-    height=int.from_bytes(data.consume(2))
-    print('> id:{} version:{} lISF:{} dL:{} w:{} h:{}'.format(id, version, lastInSequenceFlag, dataLength, width, height))
-    objectData=data.consume(dataLength)
-    imageFilename='/tmp/image-{:04d}.png'.format(ods_count)
-    if (enable_colorize):
-        image = Image.new('RGBA', (width, height), (0, 0, 0, 0))
-    else:
-        # image = Image.new('LA', (width, height), (0, 0))
-        image = Image.new('PA', (width, height), (0, 0))
-        image.putpalette(palette)
-    r=readObject(image, objectData)
-    # image.save(imageFilename)
-    image.convert('RGB')
-    image.save('/tmp/coin.png')
-    image.show()
-    image.close()
-    # os.system('/usr/bin/display {}'.format(imageFilename))
-    if ( not r ): input()
-
-ColorYUV=namedtuple('ColorYUV', 'y cr cb a')
-
-def readPDS(data):
-    print('> palette')
-    palette=[ColorYUV(0, 0, 0, 0)]*256
-    data=DataReader(data)
-    id=int.from_bytes(data.consume(1))
-    version=int.from_bytes(data.consume(1))
-    # c=0
-    while True:
-        entryID=int.from_bytes(data.consume(1))
-        if ( not entryID ): break
-        # palette=Palette(*data.consume(4))
-        palette[entryID]=ColorYUV(*data.consume(4))
-        # luminance=int.from_bytes(data.consume(1))
-        # colorDifferenceRed=int.from_bytes(data.consume(1))
-        # colorDifferenceBlue=int.from_bytes(data.consume(1))
-        # alpha=int.from_bytes(data.consume(1))
-        # c+=1
-        # print('pID:{} pVN:{} pEID:{} l:{} cDR:{} cDB:{} a:{} '.format(id, paletteVersionNumber, paletteEntryID, luminance, colorDifferenceRed, colorDifferenceBlue, alpha))
-    print('number of palette: {}'.format(len(palette)))
-    # hexPalette(palette)
-    return palette
 
 def hexPalette(palette):
     f=open('/tmp/palette.htm', 'w')
@@ -278,108 +196,205 @@ def hexPalette(palette):
     f.flush()
     f.close()
 
-def readWDS(data):
-    print('> window')
-    data=DataReader(data)
-    numberOfWindows=int.from_bytes(data.consume(1))
-    windowID=int.from_bytes(data.consume(1))
-    windowHorizontalPositon=int.from_bytes(data.consume(2))
-    windowVerticalPositon=int.from_bytes(data.consume(2))
-    windowWidth=int.from_bytes(data.consume(2))
-    windowHeight=int.from_bytes(data.consume(2))
-    print('nOW:{} wID:{} wHP:{} wVP:{} wW:{} wH:{}'.format(numberOfWindows, windowID, windowHorizontalPositon, windowVerticalPositon, windowWidth, windowHeight))
-
-def readPCS(data):
-    print('> presentation')
-    data=DataReader(data)
-    width=int.from_bytes(data.consume(2))
-    height=int.from_bytes(data.consume(2))
-    framRate=int.from_bytes(data.consume((1)))
-    compositionNumber=int.from_bytes(data.consume(2))
-    compositionState=data.consume(1)
-    paletteUpdateFlag=data.consume(1)
-    paletteID=int.from_bytes(data.consume(1))
-    numberOfCompositionObjects=int.from_bytes(data.consume(1))
-    objectID=int.from_bytes(data.consume(2))
-    windowID=int.from_bytes(data.consume(1))
-    objectCroppedFlag=int.from_bytes(data.consume(1))
-    objectHorizontalPosition=int.from_bytes(data.consume(2))
-    objectVerticalPosition=int.from_bytes(data.consume(2))
-    [objectCroppingHorizontalPosition, objectCroppingVerticalPosition,
-    objectCroppingWidth, objectCroppingHeightPosition]= [0, 0, 0, 0]
-    if ( objectCroppedFlag == b'\x40' ):
-        objectCroppingHorizontalPosition=int.from_bytes(data.consume(2))
-        objectCroppingVerticalPosition=int.from_bytes(data.consume(2))
-        objectCroppingWidth=int.from_bytes(data.consume(2))
-        objectCroppingHeightPosition=int.from_bytes(data.consume(2))
-    print('w:{} h:{} fr:{} cN:{} cS:{} pUF:{} pID:{}'.format(width, height, framRate, compositionNumber, compositionState, paletteUpdateFlag, paletteID))
-    print('nOCO:{} oID:{} wID:{} oCf:{} oHP:{} oVP:{} oCHP:{} oCVP:{} oCW:{} oCHP:{}'.format(numberOfCompositionObjects, objectID, windowID, objectCroppedFlag, objectHorizontalPosition, objectVerticalPosition, objectCroppingHorizontalPosition, objectCroppingVerticalPosition, objectCroppingWidth, objectCroppingHeightPosition))
-    # print(data.pointer)
-
-ColorRGB=namedtuple('ColorRGB', 'r g b')
-
 def validateRange(value):
     if (value < 0): return 0
     if (value > 255): return 255
     return value
 
-def yuv2rgb(yuv):
-    rgb=[]
-    for c in yuv:
-        valid=list(map(validateRange, (
-                int(c.y+1.402*(c.cr-128)),
-                int(c.y-0.34414*(c.cb-128)-0.71414*(c.cr-128)),
-                int(c.y+1.772*(c.cb-128))
-                )))
-        rgb.append(ColorRGB(*valid))
-    return rgb
+pgs=namedtuple('PresentationGraphicStream', ('pts dts ds'))
+pcs=namedtuple('PresentationCompositionSegment', ([
+    'video_width', 'video_height',
+    'frame_rate', 'comp_n',
+    'comp_state', 'palette_update',
+    'palette_id', 'nof_obj',
+    'obj_id', 'window_id',
+    'obj_crop',
+    'obj_posx', 'obj_posy',
+    'obj_crop_posx', 'obj_crop_posy',
+    'obj_crop_width', 'obj_crop_height'
+]))
+wds=namedtuple('WindowDefinitionSegment', ('nof id posx posy width height'))
+pds=namedtuple('PaletteDefinitionSegment', (['id', 'version', 'palette']))
+ods=namedtuple('ObjectDefinitionSegment', 'id version last data_size width height obj_data')
+ds=namedtuple('DisplaySet', ('pcs wpo_list'))
+wpo=namedtuple('WindowPaletteObject', ('wds pds ods'))
+end=namedtuple('END', (''))
 
-def readSegment(n):
-    global ods_count
-    header=supfile.read(2)
-    if ( not header ): return False
-    print('.segment: {}'.format(n+1))
-    if ( header != b'PG' ):
-        print(header)
-        print('not a sup file, abort.')
-        sys.exit(1)
-    pts=int.from_bytes(supfile.read(4))/90
-    # print(pts)
-    dts=int.from_bytes(supfile.read(4))
-    segtype=supfile.read(1)
-    segsize=supfile.read(2)
-    subdata=supfile.read(int.from_bytes(segsize))
-    palette=[]
+def readWDS(bytes):
+    '''
+    1 byte,  Number of windows: Number of windows defined in this segment
+    1 byte,  Window ID: ID of this window
+    2 bytes, Window horizontal position: X offset from the top left pixel of the window in the screen
+    2 bytes, Window vertical position: Y offset from the top left pixel of the window in the screen
+    2 bytes, Window width: Width of the window
+    2 bytes, Window height: Height of the window
+    '''
+    return wds(
+        int.from_bytes(bytes[0:1]),
+        int.from_bytes(bytes[1:2]),
+        int.from_bytes(bytes[2:4]),
+        int.from_bytes(bytes[4:6]),
+        int.from_bytes(bytes[6:8]),
+        int.from_bytes(bytes[8:10])
+    )
+
+def readPCS(bytes):
+    '''
+    2 bytes, object ID: ID of the ODS segment that defines the image to be shown
+    1 byte,  window ID: Id of the WDS segment to which the image is allocated in the PCS, maximum 2 images.
+    1 byte,  object cropped flag: 0x40: Force display of the cropped image object 0x00: Off
+    2 bytes, object horizontal position: X offset from the top left pixel of the image on the screen
+    2 bytes, object vertical position: Y offset from the top left pixel of the image on the screen
+    2 bytes, object cropping horizontal position: X offset from the top left pixel of the cropped object in the screen. Only used when the Object Cropped Flag is set to 0x40
+    2 bytes, Object Cropping Vertical Position: Y offset from the top left pixel of the cropped object in the screen. Only used when the Object Cropped Flag is set to 0x40
+    2 bytes, Object Cropping Width: Width of the cropped object in the screen. Only used when the Object Cropped Flag is set to 0x40
+    2 bytes, Object Cropping Height Position: Heightl of the cropped object in the screen. Only used when the Object Cropped Flag is set to 0x40
+    '''
+    cropping=(0, 0, 0, 0)
+    if ( bytes[14] == b'\x40' ):
+        cropping=(
+            int.from_bytes(bytes[19:21]),
+            int.from_bytes(bytes[21:23]),
+            int.from_bytes(bytes[23:25]),
+            int.from_bytes(bytes[25:27])
+        )
+    return pcs(
+        int.from_bytes(bytes[:2]),
+        int.from_bytes(bytes[2:4]),
+        int.from_bytes(bytes[4:5]),
+        int.from_bytes(bytes[5:7]),
+        bytes[7:8],
+        bytes[8:9],
+        int.from_bytes(bytes[9:10]),
+        int.from_bytes(bytes[10:11]),
+        int.from_bytes(bytes[11:13]),
+        int.from_bytes(bytes[13:14]),
+        int.from_bytes(bytes[14:15]),
+        int.from_bytes(bytes[15:17]),
+        int.from_bytes(bytes[17:19]),
+        *cropping
+    )
+
+def readPDS(bytes):
+    # Palette Definition Segment
+    ############################
+    # 1 byte, ID: ID of the palette
+    # 1 byte, Version Number: Version of this palette within the Epoch
+    # ------- Following entries can be repeated
+    # 1 byte, Entry ID: Entry number of the palette
+    # 1 byte, Luminance (Y): Luminance (Y value)
+    # 1 byte, Color Difference Red (Cr): Color Difference Red (Cr value)
+    # 1 byte, Color Difference Blue (Cb): Color Difference Blue (Cb value)
+    # 1 byte, Transparency (Alpha): Transparency (Alpha value)
+
+    # build empty palette YCrCb + alpha (black)
+    palette_alpha=[(0, 0, 0, 0)]*256
+    palette=[(0, 0, 0)]*256
+    id=int.from_bytes(bytes[0:1])
+    version=int.from_bytes(bytes[1:2])
+    n=0
+    while (n <= len(bytes[2:])):
+        entry=int.from_bytes(bytes[n:n+1])
+        # YCrCb to RGB conversion
+        y,cr,cb=int.from_bytes(bytes[n+1:n+2]), int.from_bytes(bytes[n+2:n+3]), int.from_bytes(bytes[n+3:n+4])
+        palette[entry]=(
+            validateRange(int(y+1.402*(cr-128))),
+            validateRange(int(y-0.34414*(cb-128)-0.71414*(cr-128))),
+            validateRange(int(y+1.772*(cb-128))),
+            # alpha channel
+            # int.from_bytes(bytes[n+4:n+5])
+        )
+        n+=5
+    return pds(id, version, list(itertools.chain.from_iterable(palette)))
+
+def readODS(bytes):
+    return ods(
+        int.from_bytes(bytes[:2]),
+        int.from_bytes(bytes[2:3]),
+        bytes[3:4],
+        int.from_bytes(bytes[4:7]),
+        int.from_bytes(bytes[7:9]),
+        int.from_bytes(bytes[9:11]),
+        bytes[11:]
+    )
+
+segment_count=0
+max_segment=4
+ds_count=0
+max_ds=2
+# current display set
+currentDS={'pcs': None, 'wpo_list': []}
+currentWPO={'wds': None, 'pds': None, 'ods': None}
+
+while True:
+    '''
+    PGS: Presentation Graphic Stream
+    2 bytes, Magic Number: "PG" (0x5047)
+    4 bytes, PTS: Presentation Timestamp (milliseconds with a frequency 90kHz)
+    4 bytes, DTS: Decoding Timestamp (milliseconds with a frequency 90kHz)
+    1 byte,  Segment Type: 0x14: PDS, 0x15: ODS, 0x16: PCS, 0x17: WDS, 0x80: END
+    2 bytes, Segment Size: Size of the segment
+    |PCS|
+            |WDS|PDS|ODS| |WDS|PDS|ODS| … |WDS|PDS|ODS|
+    |END|
+    '''
+    # bytes must be slice everytimes, if not an integer is return
+    # bytes[0] != bytes[0:1] because bytes[0] convert into integer
+    bytes=supfile.read(13)
+    magicNumber=bytes[:2]
+    if not magicNumber: break
+    pts=int.from_bytes(bytes[2:6])/90
+    dts=int.from_bytes(bytes[6:10])/90
+    segtype=bytes[10:11]
+    size=bytes[11:13]
+    subData=supfile.read(int.from_bytes(size))
 
     if ( segtype == b'\x14' ):
-        segtype='PDS'
-        palette=readPDS(subdata)
-        palette=yuv2rgb(palette)
+        # PDS
+        palette=readPDS(subData)
+        currentWPO['pds']=palette
     elif ( segtype == b'\x15' ):
-        segtype='ODS'
-        ods_count+=1
-        readODS(subdata, palette)
+        # ODS
+        objectDefinitionSegment=readODS(subData)
+        currentWPO['ods']=objectDefinitionSegment
+        # add current WPO to current display set
+        currentDS['wpo_list'].append(wpo(**currentWPO))
+        # reset current Window Palette Object
+        currentWPO={'wds': None, 'pds': None, 'ods': None}
     elif ( segtype == b'\x16' ):
-        segtype='PCS'
-        readPCS(subdata)
+        # PCS
+        presentationCompositionSegment=readPCS(subData)
+        currentDS['pcs']=presentationCompositionSegment
     elif ( segtype == b'\x17' ):
-        segtype='WDS'
-        readWDS(subdata)
+        # WDS
+        windowDefinitionSegment=readWDS(subData)
+        currentWPO['wds']=windowDefinitionSegment
     elif ( segtype == b'\x80' ):
-        segtype='END'
-        readEnd(subdata)
+        # END
+        # create image with current display set
+        n=0
+        # print(currentDS)
+        while n < currentDS['pcs'].nof_obj:
+            win_size=(currentDS['wpo_list'][n].ods.width, currentDS['wpo_list'][n].ods.height)
+            obj_bytes=currentDS['wpo_list'][n].ods.obj_data
+            palette=currentDS['wpo_list'][n].pds.palette
+            image = Image.new('P', win_size, 255)
+            readObject(image, obj_bytes)
+            # print(len(palette))
+            # image.putpalette(palette)
+            image.putpalette((255,0,128))
+            image.save(f'/tmp/image-{ds_count:04d}.png')
+            print(f'/tmp/image-{ds_count:04d}.png saved.')
+            image.close()
+            n+=1
+        # reset display set
+        currentDS={pcs: None, 'wpo_list': None}
+        ds_count+=2
+        if ( ds_count >= max_ds ): break
+
     else:
-        print(str(segtype))
-        print('Wrong segment type, abort.')
-        sys.exit(1)
-
-    # always 0
-    return True
-
-ods_count=0
-while readSegment(count):
-    print()
-    count+=1
-    if ( count > max_count ): break
-
-supfile.close()
+        print(f'Unknown segment type ({segtype}), skipping.')
+    # segment_count+=1
+    # if segment_count >= max_segment:
+        # print(currentDS)
+        # break

@@ -119,49 +119,48 @@ while (($line = fgets($fp)) !== false) {
         fwrite($vttHandle, sprintf("\n%s\n%s --> %s\n", $matches[1], $matches[2], $matches[4]));
         continue;
     }
+
     // search for image line
     preg_match("/$image/", $line, $matches);
-    if ($matches) {
-        $filename = sprintf(
-            '%s.%0' . $padding_final . 'd.vobsub.png',
-            $pathInfo['filename'],
-            ceil((($imageCounter + 1) / $lines) / $columns)
-        );
-        $imagick = new Imagick($matches[1]);
-        [$width, $height] = [$imagick->getImageWidth(), $imagick->getImageHeight()];
-        $original = sprintf('%d:%d', $width, $height);
-        $imagick->clear();
-        // reset drift Y value and update drift X
-        if (($imageCounter > 0) && ($imageCounter % $lines) == 0) {
-            $drift_y = 0;
-            $drift_x += $largest;
-            $largest = 0;
-        }
-        // reset drift X value
-        if (($imageCounter > 0) && ($imageCounter % ($lines * $columns) == 0)) {
-            $drift_x = 0;
-            $largest = 0;
-        }
-        // print current target filename, new cropped size and original size
-        fwrite(
-            $vttHandle,
-            sprintf(
-                "%s %d×%d:%d:%d org:%s\n",
-                $filename,
-                $width,
-                $height,
-                $drift_y,
-                $drift_x,
-                $original
-            )
-        );
-        // update drift_y value all times
-        $drift_y += $height;
-        $imageCounter++;
-        // save max width cropped image encountered on each image, for drift X later use
-        if ($width > $largest) {
-            $largest = $width;
-        }
+    $filename = sprintf(
+        '%s.%0' . $padding_final . 'd.vobsub.png',
+        $pathInfo['filename'],
+        ceil((($imageCounter + 1) / $lines) / $columns)
+    );
+    $imagick = new Imagick($matches[1]);
+    [$width, $height] = [$imagick->getImageWidth(), $imagick->getImageHeight()];
+    $original = sprintf('%d:%d', $width, $height);
+    $imagick->clear();
+    // reset drift Y value and update drift X
+    if (($imageCounter > 0) && ($imageCounter % $lines) == 0) {
+        $drift_y = 0;
+        $drift_x += $largest;
+        $largest = 0;
+    }
+    // reset drift X value
+    if (($imageCounter > 0) && ($imageCounter % ($lines * $columns) == 0)) {
+        $drift_x = 0;
+        $largest = 0;
+    }
+    // print current target filename, new cropped size and original size
+    fwrite(
+        $vttHandle,
+        sprintf(
+            "%s %d×%d:%d:%d org:%s\n",
+            $filename,
+            $width,
+            $height,
+            $drift_y,
+            $drift_x,
+            $original
+        )
+    );
+    // update drift_y value all times
+    $drift_y += $height;
+    $imageCounter++;
+    // save max width cropped image encountered on each image, for drift X later use
+    if ($width > $largest) {
+        $largest = $width;
     }
 }
 fclose($fp);
