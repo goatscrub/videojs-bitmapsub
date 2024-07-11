@@ -4,15 +4,15 @@
 # https://blog.thescorpius.com/index.php/2017/07/15/presentation-graphic-stream-sup-files-bluray-subtitle-format/
 # find a copy into doc sub folder
 
-import sys, os, itertools, argparse
+import sys, os, itertools, argparse, datetime, math
 from PIL import Image, ImageDraw, ImageShow
 from collections import namedtuple
 
 cliParser=argparse.ArgumentParser(
-    prog='sup.py',
+    prog=os.path.basename(sys.argv[0]),
     description='PGS .sup file reader',
     epilog='have bien le fun'
-    )
+)
 cliParser.add_argument('filename')
 cliParser.add_argument('-c', '--colorize', action='store_true', default='store_false')
 cliParser.add_argument('-d', '--debug', action='store_true', default='store_false')
@@ -22,10 +22,15 @@ enable_debug=cliArgs.debug
 enable_colorize=cliArgs.colorize
 if (os.path.isfile(cliArgs.filename)):
     filename=cliArgs.filename
+    basename=os.path.basename(filename)
     supfile=open(filename, 'rb')
     # define image prefix
-    image_prefix=os.path.splitext(os.path.basename(filename))[0]+'-'
+    image_prefix=os.path.splitext(basename)[0]+'-'
     image_extension='png'
+    # define webvtt filename
+    webvtt_filename=os.path.splitext(basename)[0]+'.vtt'
+    pack_vobsub_prefix=os.path.splitext(basename)[0]+'-'
+    pack_vobsub_extension='vobsub.png'
 else:
     print(f'File \'{cliArgs.filename}\' does not exist, abort.')
     sys.exit(1)
@@ -214,7 +219,7 @@ pcs=namedtuple('PresentationCompositionSegment', [
 wds=namedtuple('WindowDefinitionSegment', 'nof id posx posy width height')
 pds=namedtuple('PaletteDefinitionSegment', 'id version palette')
 ods=namedtuple('ObjectDefinitionSegment', 'id version last data_size width height obj_data')
-ds=namedtuple('DisplaySet', 'pcs wpo_list')
+ds = namedtuple('DisplaySet', 'pcs wpo_list')
 wpo=namedtuple('WindowPaletteObject', 'wds pds ods')
 end=namedtuple('END', '')
 co=namedtuple('CompositionObject', 'id window_id cropped_flag pos_x pos_y crop_pos_x crop_pos_y crop_width crop_height')
@@ -252,10 +257,10 @@ def readCO(bytes):
     cropping=(0, 0, 0, 0)
     if ( bytes[3:4] == b'\x40' ):
         cropping=(
-            int.from_bytes(bytes[8:10]), # obj. crop. pos. x
-            int.from_bytes(bytes[10:12]), # obj. crop. pos. y
-            int.from_bytes(bytes[12:14]), # obj. crop. width
-            int.from_bytes(bytes[14:16]), # obj. crop. height
+            int.from_bytes(bytes[8:10]),  # obj. crop. pos. x
+            int.from_bytes(bytes[10:12]),  # obj. crop. pos. y
+            int.from_bytes(bytes[12:14]),  # obj. crop. width
+            int.from_bytes(bytes[14:16]),  # obj. crop. height
         )
     return co(
         int.from_bytes(bytes[0:2]), # object ID
@@ -343,14 +348,66 @@ def readODS(bytes):
         bytes[11:]
     )
 
+def ms2time(milliseconds):
+    time=str(datetime.timedelta(milliseconds=milliseconds)).split('.')
+    if len(time) > 1:
+        ms=time[1][:-3]
+    else:
+        ms='000'
+    return '{:>02s}:{}:{}'.format(*time[0].split(':'), ms)
+
+def packFilename(number):
+    # 128: rows, 4: columns
+    return number//(4*128)+1
+
 segment_count=0
 max_segment=4
 image_count=0
-max_ds=16
+max_ds=10000
 # current display set
 currentDS={'pcs': None, 'wpo_list': []}
 currentWPO={'wds': None, 'pds': None, 'ods': None}
+current_webvtt_cue=[]
 
+class PackImages:
+
+    def __init__(self, total_images, prefix='img-', extension='png', rows=128, columns=4):
+        self.rows, self.columns, self.total_images=rows, columns, total_images
+        self.driftX, self.driftY, self.count, self.largest=0, 0, 0, 0
+        self.prefix, self.extension=prefix, extension
+        self.nof_pack = math.ceil(self.total_images / ( self.rows * self.columns ))
+        self.int_width=f'0{len(str(self.nof_pack))}d'
+
+    def currentPack(self):
+        # return current pack number
+        return self.count//(self.rows*self.columns)
+
+    def filename(self):
+        # return vobsub filename against current packing file
+        return f'{self.prefix}{self.currentPack():{self.int_width}}.{self.extension}'
+
+    def getCues(self, source_image, width, height):
+        # return string containing file pack, with corresponding
+        # drift X and Y, and original image filename
+        if width > self.largest: self.largest=width
+
+        if not (self.count+1) % self.rows:
+            self.driftX+=self.largest
+            self.largest=0
+            self.driftY=0
+        elif not (self.count+1) % (self.rows * self.columns):
+            self.driftX, self.largest=0, 0
+
+        output=f'{self.filename()} {width}×{height}:{self.driftX}:{self.driftY} org:{source_image}\n'
+        self.driftY+=height
+        self.count+=1
+        return output
+
+pack=PackImages(1892, prefix=pack_vobsub_prefix, extension=pack_vobsub_extension)
+
+webvtt_file=open(webvtt_filename, 'w')
+webvtt_file.write(f'WEBVTT - {basename}\n')
+webvtt_file.write(f'NOTE file generated with {cliParser.prog} {str(datetime.datetime.now()).split('.')[0]}\n')
 while True:
     '''
     PGS: Presentation Graphic Stream
@@ -397,6 +454,10 @@ while True:
     elif ( segtype == b'\x80' ):
         # END
         # create image with current display set
+        if currentDS['pcs'].nof_obj:
+            current_webvtt_cue.extend([image_count+1, ms2time(pts)])
+        else:
+            current_webvtt_cue.append(ms2time(pts))
         n=0
         while n < currentDS['pcs'].nof_obj:
             win_size=(currentDS['wpo_list'][n].ods.width, currentDS['wpo_list'][n].ods.height)
@@ -407,14 +468,21 @@ while True:
             image.putpalette(palette)
             image_filepath=f'/tmp/{image_prefix}{image_count:04d}.{image_extension}'
             image.save(image_filepath)
+            pack_filename=f'/tmp/{image_prefix}{packFilename(image_count)}.{image_extension}'
+            webvtt_file.write('\n{0}\n{1} --> {2}\n'.format(*current_webvtt_cue, ms2time(pts)))
+            webvtt_file.write(pack.getCues(image_filepath, win_size[0], win_size[1]))
             print(f'{image_filepath} saved.', end='\r')
             image.close()
             image_count+=1
             n+=1
         # reset display set
-        currentDS={pcs: None, 'wpo_list': []}
+        currentDS={'pcs': None, 'wpo_list': []}
+        # reset current webvtt cue
+        current_webvtt_cue=[]
         if ( image_count >= max_ds ): break
 
     else:
         print(f'Unknown segment type ({segtype}), skipping.')
 print(f'\n{image_count} image saved.')
+print(f'{webvtt_filename} created.')
+webvtt_file.close()
