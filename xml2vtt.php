@@ -1,5 +1,6 @@
 #!/usr/bin/env php
 <?php
+// TODO: skip NOTE line
 $lines = 128;
 $columns = 4;
 
@@ -9,6 +10,7 @@ if ($argc <= 1) {
     exit(1);
 }
 // search for corresponding .vob or .idx files
+$prog = $argv[0];
 $pathInfo = pathinfo($argv[1]);
 $baseFilenamePath = implode(DIRECTORY_SEPARATOR, [$pathInfo['dirname'], $pathInfo['filename']]);
 if (!file_exists($baseFilenamePath . '.vob') && !file_exists($baseFilenamePath . '.idx')) {
@@ -27,7 +29,8 @@ $pngBaseFilesPath = implode(DIRECTORY_SEPARATOR, [$tmpFolderName, $pathInfo['fil
 $pngBaseFilesPath = str_replace(DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR, DIRECTORY_SEPARATOR, $pngBaseFilesPath);
 $subp2pngCmd = sprintf('subp2png -n %s -o %s 1>/dev/null', $baseFilenamePath, $pngBaseFilesPath);
 // generate vobsub images
-passthru($subp2pngCmd);
+echo "Generate vobsub images…\n";
+// passthru($subp2pngCmd);
 
 function idxMetadata() {
     // count number of subtitle available in .idx file
@@ -68,12 +71,14 @@ function fileRangePack($totalItems, $packBy, $cmd) {
 $idxMeta = idxMetadata();
 [$n_of_subs, $idx_screen_size] = [$idxMeta[0], $idxMeta[1]];
 // filter images
+echo "Filter images…\n";
 for ($n = 1; $n <= $n_of_subs; $n++) {
-    passthru(sprintf("mogrify -transparent 'rgb(255,255,255)' -trim %s%04d.png", $pngBaseFilesPath, $n));
+    // passthru(sprintf("mogrify -transparent 'rgb(255,255,255)' -trim %s%04d.png", $pngBaseFilesPath, $n));
 }
 
 // temporary packing, create columns of items
 // compute zero leading pad
+echo "Pack columns…\n";
 $padding_generated = strlen(ceil($n_of_subs / $lines));
 $cmd = sprintf(
     "/bin/bash -c \"convert %s{%%04d..%%04d}.png -append %s.%%0%dd.tmp.png\"",
@@ -82,9 +87,10 @@ $cmd = sprintf(
     $padding_generated
 );
 // return number of files generated
-$generated_files = fileRangePack($n_of_subs, $lines, $cmd);
+// $generated_files = fileRangePack($n_of_subs, $lines, $cmd);
 // compute zero leading pad for final stage files
-$padding_final = strlen(ceil($generated_files / $columns));
+echo "Pack final file…\n";
+// $padding_final = strlen(ceil($generated_files / $columns));
 $cmd = sprintf(
     "/bin/bash -c \"convert %s.{%%0%dd..%%0%dd}.tmp.png +append %s.%%0%dd.vobsub.png\"",
     $pngBaseFilesPath,
@@ -94,7 +100,7 @@ $cmd = sprintf(
     $padding_final
 );
 // final packing, create rows of columns items
-fileRangePack($generated_files, $columns, $cmd);
+// fileRangePack($generated_files, $columns, $cmd);
 
 // define line regexes
 $timestamp = '((\d{2}:){2}\d{2}\.\d{3})';
@@ -104,11 +110,13 @@ $image = '^\s*<image>(.+)<\/image>$';
 $vttFile = $pathInfo['filename'] . '.vtt';
 $vttHandle = fopen($vttFile, 'w');
 // append vtt header file
-fwrite($vttHandle, sprintf("WEBVTT - %s - %s\n", $pathInfo['filename'], $idx_screen_size));
+fwrite($vttHandle, sprintf("WEBVTT - %s - %s", $pathInfo['filename'], $idx_screen_size));
+fwrite($vttHandle, "NOTE file generated with $prog");
 // opening subp2png xml generated file
 $xmlFile = implode(DIRECTORY_SEPARATOR, [$tmpFolderName, $pathInfo['filename'] . '.xml']);
 $fp = fopen($xmlFile, 'r');
 
+echo "Process XML file…\n";
 [$drift_y, $drift_x] = [0, 0];
 $largest = 0;
 $imageCounter = 0;
@@ -128,15 +136,19 @@ while (($line = fgets($fp)) !== false) {
         ceil((($imageCounter + 1) / $lines) / $columns)
     );
     $imagick = new Imagick($matches[1]);
+    echo $imagick;
     [$width, $height] = [$imagick->getImageWidth(), $imagick->getImageHeight()];
     $original = sprintf('%d:%d', $width, $height);
     $imagick->clear();
+    // each image file contains max_rows*max_columns
+    // current column finished (reset y), add new column (update x with the previous largest one)
     // reset drift Y value and update drift X
     if (($imageCounter > 0) && ($imageCounter % $lines) == 0) {
         $drift_y = 0;
         $drift_x += $largest;
         $largest = 0;
     }
+    // changing file because n of image = max_columns*max_rows
     // reset drift X value
     if (($imageCounter > 0) && ($imageCounter % ($lines * $columns) == 0)) {
         $drift_x = 0;
@@ -150,18 +162,16 @@ while (($line = fgets($fp)) !== false) {
             $filename,
             $width,
             $height,
-            $drift_y,
             $drift_x,
+            $drift_y,
             $original
         )
     );
-    // update drift_y value all times
+    // update drift_y value all times (rows)
     $drift_y += $height;
     $imageCounter++;
-    // save max width cropped image encountered on each image, for drift X later use
-    if ($width > $largest) {
-        $largest = $width;
-    }
+    // save max width cropped image encountered on each image, for drift X later use when changing column
+    if ($width > $largest) $largest = $width;
 }
 fclose($fp);
 fclose($vttHandle);
@@ -170,6 +180,7 @@ $cmd = sprintf('mv %s*.vobsub.png .', $pngBaseFilesPath);
 passthru($cmd);
 // remove temporary directory and files
 // test is completely useless but make me less anxious
+echo "Cleaning up temporary files…\n";
 if (str_starts_with($tmpFolderName, '/tmp/vobsub-')) {
     passthru(sprintf('rm -rf %s', $tmpFolderName));
 }

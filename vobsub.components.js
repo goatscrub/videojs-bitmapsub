@@ -1,12 +1,12 @@
-const menuButton=videojs.getComponent('MenuButton')
-const menuItem=videojs.getComponent('MenuItem')
+const menuButton = videojs.getComponent('MenuButton')
+const menuItem = videojs.getComponent('MenuItem')
 const vjsComponent = videojs.getComponent('Component')
 
 class vobsubMenuButton extends menuButton {
     createItems() {
         return this.options().vobsubItems.map(vi => {
-            const item=new menuItem(this.player(), {label: vi.label})
-            item.handleClick = () => { console.log(`here: ${vi.label}`)}
+            const item = new menuItem(this.player(), { label: vi.label })
+            item.handleClick = () => { console.log(`here: ${vi.label}`) }
             return item
         })
     }
@@ -23,7 +23,10 @@ class vobsubComponent extends vjsComponent {
     }
 
     createEl() {
-        return videojs.dom.createEl('div', { id: 'vobsub-container' })
+        const container = videojs.dom.createEl('div', { id: 'vobsub-container' })
+        const vobsub = videojs.dom.createEl('div', { id: 'vobsub' })
+        container.appendChild(vobsub)
+        return container
     }
 }
 
