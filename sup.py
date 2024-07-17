@@ -14,12 +14,12 @@ cliParser=argparse.ArgumentParser(
     epilog='have bien le fun'
 )
 cliParser.add_argument('filename')
-cliParser.add_argument('-c', '--colorize', action='store_true', default='store_false')
+cliParser.add_argument('-c', '--columns', action='store', default=4, type=int)
 cliParser.add_argument('-d', '--debug', action='store_true', default='store_false')
+cliParser.add_argument('-r', '--rows', action='store', default=128, type=int)
 cliArgs=cliParser.parse_args()
 
 enable_debug=cliArgs.debug
-enable_colorize=cliArgs.colorize
 if (os.path.isfile(cliArgs.filename)):
     filename=cliArgs.filename
     basename=os.path.basename(filename)
@@ -34,25 +34,41 @@ if (os.path.isfile(cliArgs.filename)):
 else:
     print(f'File \'{cliArgs.filename}\' does not exist, abort.')
     sys.exit(1)
+rows, columns = cliArgs.rows, cliArgs.columns
+test_maxbytes = 256
 
-# check header
+def search_nof_subs(read_bytes):
+    n, maxbytes = 0, len(read_bytes)
+    while n < maxbytes:
+        n += 1
+        byte = read_bytes[maxbytes-n:maxbytes-n+1]
+        if ( byte == b'G' ):
+            n += 1
+            byte = read_bytes[maxbytes-n:maxbytes-n+1]
+            if ( byte == b'P' ):
+                pgs_offset = 13
+                pgs = read_bytes[maxbytes-n:maxbytes-n+pgs_offset]
+                if ( pgs[10:11] == b'\x16' ):
+                    pcs_size = int.from_bytes(pgs[11:13])
+                    pcs_bytes = read_bytes[maxbytes-n+pgs_offset:maxbytes-n+pgs_offset+pcs_size]
+                    w=int.from_bytes(pcs_bytes[:2])
+                    h=int.from_bytes(pcs_bytes[2:4])
+                    composition_number=int.from_bytes(pcs_bytes[5:7])
+                    return f'{w}x{h} {(composition_number//2)+1:d}'
+    else:
+        return ''
+
+# check supfile header, search PG 0x50,0x47
 if ( supfile.read(2) != b'PG' ):
     print('Wrong header file, this file does not seems to be a sup file, abort.')
     sys.exit(1)
 else:
+    # seek to last byte available
+    supfile.seek(-test_maxbytes, 2)
+    # save lasts bytes
+    read_bytes = supfile.read(test_maxbytes)
+    supfile_info = search_nof_subs(read_bytes)
     supfile.seek(0)
-
-c_yellow='\033[0;33m'
-c_white='\033[1;37m'
-c_green='\033[0;32m'
-c_cyan='\033[0;36m'
-c_red='\033[0;31m'
-c_blue='\033[0;34m'
-c_term_reset='\033[0m'
-LINE_CLEAR='\x1b[2K'
-
-count=0
-max_count=64
 
 PCS={
     'compositionState': {
@@ -66,43 +82,22 @@ PCS={
     }
 }
 
-def debug_header():
-    if (enable_debug):
-        header='{:>3} {:>3} {:10} {:2s} {:3s} {:1s} {:5s} {:4s}'.format('ccc', 'aaa', 'bits', 'wt', 'rp', 'B', 'bytes', 'xpos')
-        sep=len(header)*'-'
-        return f'{header}\n{sep}'
-
-def debug(locale_vars):
-    if (enable_debug):
-        print(format(f'{locale_vars['c_term_color']}{locale_vars['color'][0]:>3},{locale_vars['color'][1]:>3} {locale_vars['bits']:>10} {locale_vars['witness']:>2} {locale_vars['repeat']:<3} {locale_vars['octets']:>1} {str(locale_vars['byte'])[2:-1]:5s} {locale_vars['drawer'].x}{c_term_reset}'))
-
-
-class ImageViewer(ImageShow.Viewer):
-    def __init__(self, viewer_command):
-        super().__init__()
-        self.command=viewer_command
-
-    def get_command(self, file, **kargs):
-        return '{} {}'.format(self.command, file)
-
-m=ImageViewer('/usr/bin/display')
-m.get_command('prout')
-
-ImageShow.register(m, 0)
-
-class DataReader:
-    def __init__(self, data):
-        self.data=data
-        self.pointer=0
-
-    def consume(self, length):
-        next=self.pointer+length
-        try:
-            chunk = self.data[self.pointer:next]
-            self.pointer=next
-            return chunk
-        except IndexError:
-            return False
+pgs=namedtuple('PresentationGraphicStream', 'pts dts ds')
+pcs=namedtuple('PresentationCompositionSegment', [
+    'video_width', 'video_height',
+    'frame_rate', 'comp_n',
+    'comp_state', 'timestamp',
+    'palette_update', 'palette_id',
+    'nof_obj', 'co'
+])
+wds=namedtuple('WindowDefinitionSegment', 'nof id posx posy width height')
+pds=namedtuple('PaletteDefinitionSegment', 'id version palette')
+ods=namedtuple('ObjectDefinitionSegment', 'id version last data_size width height obj_data')
+ds = namedtuple('DisplaySet', 'pcs wpo_list')
+wpo=namedtuple('WindowPaletteObject', 'wds pds ods')
+end=namedtuple('END', '')
+co=namedtuple('CompositionObject', 'id window_id cropped_flag pos_x pos_y crop_pos_x crop_pos_y crop_width crop_height')
+packDescription=namedtuple('packOfSub', 'subfile begin end')
 
 class Drawer:
     def __init__(self, image):
@@ -123,23 +118,100 @@ class Drawer:
         self.x=0
         self.y+=1
 
-# image=Image.new('RGB', (100, 100), (255, 255, 255))
-# drawer=ImageDraw.Draw(image)
-# drawer.line([(10, 10), (50, 10)], fill=0, width=1, joint=None)
-# drawer.line([(10, 10), (10, 50)], fill=0, width=1, joint=None)
-# drawer.line([(10, 50), (11, 50)], fill=0, width=1, joint=None)
-# # image.putpalette((255, 255, 255))
-# image.save('/tmp/coin.png')
-# image.close()
+class PackImages:
+
+    def __init__(self, total_images, prefix='img-', extension='png', rows=128, columns=4):
+        self.rows, self.columns, self.total_images=rows, columns, total_images
+        self.driftX, self.driftY, self.count, self.largest=0, 0, 0, 0
+        self.prefix, self.extension=prefix, extension
+        self.nof_pack = math.ceil(self.total_images / ( self.rows * self.columns ))
+        self.int_width=f'0{len(str(self.nof_pack))}d'
+        self.packs, self.current_pack = [], None
+        self.current_column, self.column_count=[], 0
+
+    def currentPack(self):
+        # return current pack number
+        return self.count//(self.rows*self.columns)
+
+    def filename(self):
+        # return vobsub filename against current packing file
+        return f'{self.prefix}{self.currentPack():{self.int_width}}.{self.extension}'
+
+    def startPack(self):
+        self.current_pack=[self.filename(), f'{self.count:04d}']
+
+    def endPack(self):
+        self.current_pack.append(f'{self.count:04d}')
+        self.packs.append(packDescription(*self.current_pack))
+        self.current_pack=None
+
+    def getCues(self, width, height):
+        if not self.current_pack: self.startPack()
+        # return string containing file pack, with corresponding drift X and Y
+        if width > self.largest: self.largest=width
+
+        if not (self.count) % (self.rows * self.columns):
+            # changing pack file
+            self.endPack()
+            # reset drift and largest
+            self.driftX, self.driftY, self.largest = 0, 0, 0
+        elif not (self.count) % self.rows:
+            # change column into current pack
+            self.driftX+=self.largest
+            self.largest=0
+            self.driftY=0
+
+        output=f'{self.filename()} {width}×{height}:{self.driftX}:{self.driftY}'
+        self.driftY+=height
+        self.count+=1
+        return output
+
+    def makeImage(self, ds):
+        ''' Create image with a display set
+            return cue content from PackImage.getCues()
+        '''
+        n=0
+        while n < ds['pcs'].nof_obj:
+            win_size=(ds['wpo_list'][n].ods.width, ds['wpo_list'][n].ods.height)
+            obj_bytes=ds['wpo_list'][n].ods.obj_data
+            palette=ds['wpo_list'][n].pds.palette
+            image = Image.new('P', win_size, 255)
+            readObject(image, obj_bytes)
+            image.putpalette(palette)
+            image_filepath=f'/tmp/{image_prefix}{ds['pcs'].comp_n//2:04d}.{image_extension}'
+            image.save(image_filepath)
+            image.close()
+            n+=1
+            # print(f'{image_filepath} saved.', end='\r')
+        return pack.getCues(win_size[0], win_size[1])
+
+def validateRange(value):
+    if (value < 0): return 0
+    if (value > 255): return 255
+    return value
+
+def redChannel(y, cr):
+    # red channel from y and cr channels
+    return validateRange(int(y+1.402*(cr-128)))
+
+def greenChannel(y, cb, cr):
+    # green channel from y, cb and cr channels
+    return validateRange(int(y-0.34414*(cb-128)-0.71414*(cr-128)))
+
+def blueChannel(y, cb):
+    # blue channel from y and cb channels
+    return validateRange(int(y+1.772*(cb-128)))
 
 def readObject(image, bytes):
-    # C: color, L: length, 0: default color
-    # 1 byte : CCCCCCCC
-    # 2 bytes: 00000000 00LLLLLL
-    # 3 bytes: 00000000 01LLLLLL LLLLLLLL
-    # 3 bytes: 00000000 10LLLLLL CCCCCCCC
-    # 4 bytes: 00000000 11LLLLLL LLLLLLLL CCCCCCCC
-    # 2 bytes: 00000000 00000000 end of line
+    '''
+    C: color, L: length, 0: default color
+    1 byte : CCCCCCCC
+    2 bytes: 00000000 00LLLLLL
+    3 bytes: 00000000 01LLLLLL LLLLLLLL
+    3 bytes: 00000000 10LLLLLL CCCCCCCC
+    4 bytes: 00000000 11LLLLLL LLLLLLLL CCCCCCCC
+    2 bytes: 00000000 00000000 end of line
+    '''
 
     drawer=Drawer(image)
     n=0
@@ -188,44 +260,8 @@ def readObject(image, bytes):
                 drawer.drawLine(color, length)
                 n+=3
 
-def colorize(color, alternative):
-    if (enable_colorize): return alternative
-    return color
-
-def hexPalette(palette):
-    f=open('/tmp/palette.htm', 'w')
-    f.write('<html><head><link rel="stylesheet" href="file:///home/gnuk/workflow/videojs-vobsub/palette.css"></head><body>')
-    for c in palette:
-        r,v,b= (int(c[3]+1.402*(c[4]-128)), int(c[3]-0.34414*(c[5]-128)-0.71414*(c[4]-128)), int(c[3]+1.772*(c[5]-128)))
-        d='<span style="background:#{0}{1}{2}{3:>02};">#{0}{1}{2}{3:>02}</span>\n'.format(hex(r)[2:], hex(v)[2:], hex(b)[2:], hex(c[6])[2:])
-        f.write(d)
-    f.write('</body></html>')
-    f.flush()
-    f.close()
-
-def validateRange(value):
-    if (value < 0): return 0
-    if (value > 255): return 255
-    return value
-
-pgs=namedtuple('PresentationGraphicStream', 'pts dts ds')
-pcs=namedtuple('PresentationCompositionSegment', [
-    'video_width', 'video_height',
-    'frame_rate', 'comp_n',
-    'comp_state', 'palette_update',
-    'palette_id', 'nof_obj',
-    'co'
-])
-wds=namedtuple('WindowDefinitionSegment', 'nof id posx posy width height')
-pds=namedtuple('PaletteDefinitionSegment', 'id version palette')
-ods=namedtuple('ObjectDefinitionSegment', 'id version last data_size width height obj_data')
-ds = namedtuple('DisplaySet', 'pcs wpo_list')
-wpo=namedtuple('WindowPaletteObject', 'wds pds ods')
-end=namedtuple('END', '')
-co=namedtuple('CompositionObject', 'id window_id cropped_flag pos_x pos_y crop_pos_x crop_pos_y crop_width crop_height')
-
 def readWDS(bytes):
-    '''
+    ''' Window Definition Object
     1 byte,  Number of windows: Number of windows defined in this segment
     1 byte,  Window ID: ID of this window
     2 bytes, Window horizontal position: X offset from the top left pixel of the window in the screen
@@ -243,7 +279,7 @@ def readWDS(bytes):
     )
 
 def readCO(bytes):
-    '''
+    ''' Composition Object
     0 2 bytes, object ID: ID of the ODS segment that defines the image to be shown
     2 1 byte,  window ID: Id of the WDS segment to which the image is allocated in the PCS, maximum 2 images.
     3 1 byte,  object cropped flag: 0x40: Force display of the cropped image object 0x00: Off
@@ -271,13 +307,13 @@ def readCO(bytes):
         *cropping
     )
 
-def readPCS(bytes):
-    '''
+def readPCS(bytes, pts):
+    ''' Presentation Composition Segment
     0  2 bytes, video width
     2  2 bytes, video height
-    4  1 bytes, frame rate
+    4  1 bytes, frame rate, always 0x10, can be ignored
     5  2 bytes, composition number
-    7  1 bytes, composition state
+    7  1 bytes, composition state [0x00, 0x40, 0x80]:[normal, acquisition point, epoch start]
     8  1 bytes, palette update flag
     9  1 bytes, palette ID
     10 1 bytes, number of composition objects
@@ -291,35 +327,24 @@ def readPCS(bytes):
         bytes[4], # frame rate
         int.from_bytes(bytes[5:7]), # composition number
         PCS['compositionState'][bytes[7:8]], # composition state
+        ms2time(pts),
         bool(bytes[8]), # palette update flag
         bytes[9], # palette ID
         n_of_co, # number of composition objects
         composition_obj
     )
 
-def redChannel(y, cr):
-    # red channel from y and cr channels
-    return validateRange(int(y+1.402*(cr-128)))
-
-def greenChannel(y, cb, cr):
-    # green channel from y, cb and cr channels
-    return validateRange(int(y-0.34414*(cb-128)-0.71414*(cr-128)))
-
-def blueChannel(y, cb):
-    # blue channel from y and cb channels
-    return validateRange(int(y+1.772*(cb-128)))
-
 def readPDS(bytes):
-    # Palette Definition Segment
-    ############################
-    # 1 byte, ID: ID of the palette
-    # 1 byte, Version Number: Version of this palette within the Epoch
-    # ------- Following entries can be repeated
-    # 1 byte, Entry ID: Entry number of the palette
-    # 1 byte, Luminance (Y): Luminance (Y value)
-    # 1 byte, Color Difference Red (Cr): Color Difference Red (Cr value)
-    # 1 byte, Color Difference Blue (Cb): Color Difference Blue (Cb value)
-    # 1 byte, Transparency (Alpha): Transparency (Alpha value)
+    ''' Palette Definition Segment
+    1 byte, ID: ID of the palette
+    1 byte, Version Number: Version of this palette within the Epoch
+    ------- Following entries can be repeated
+    1 byte, Entry ID: Entry number of the palette
+    1 byte, Luminance (Y): Luminance (Y value)
+    1 byte, Color Difference Red (Cr): Color Difference Red (Cr value)
+    1 byte, Color Difference Blue (Cb): Color Difference Blue (Cb value)
+    1 byte, Transparency (Alpha): Transparency (Alpha value)
+    '''
 
     # build empty palette YCrCb + alpha (black)
     palette_alpha=[(0, 0, 0, 0)]*256
@@ -338,6 +363,8 @@ def readPDS(bytes):
     return pds(id, version, list(itertools.chain.from_iterable(palette)))
 
 def readODS(bytes):
+    ''' Object Definition Segment
+    '''
     return ods(
         int.from_bytes(bytes[:2]),
         int.from_bytes(bytes[2:3]),
@@ -349,79 +376,38 @@ def readODS(bytes):
     )
 
 def ms2time(milliseconds):
+    ''' Convert milliseconds into string time like: HH:MM:SS.mm'''
     time=str(datetime.timedelta(milliseconds=milliseconds)).split('.')
     if len(time) > 1:
         ms=time[1][:-3]
     else:
         ms='000'
-    return '{:>02s}:{}:{}'.format(*time[0].split(':'), ms)
+    return '{:>02s}:{}:{}.{}'.format(*time[0].split(':'), ms)
 
-def packFilename(number):
-    # 128: rows, 4: columns
-    return number//(4*128)+1
-
-segment_count=0
-max_segment=4
-image_count=0
-max_ds=10000
 # current display set
 currentDS={'pcs': None, 'wpo_list': []}
 currentWPO={'wds': None, 'pds': None, 'ods': None}
 current_webvtt_cue=[]
-
-class PackImages:
-
-    def __init__(self, total_images, prefix='img-', extension='png', rows=128, columns=4):
-        self.rows, self.columns, self.total_images=rows, columns, total_images
-        self.driftX, self.driftY, self.count, self.largest=0, 0, 0, 0
-        self.prefix, self.extension=prefix, extension
-        self.nof_pack = math.ceil(self.total_images / ( self.rows * self.columns ))
-        self.int_width=f'0{len(str(self.nof_pack))}d'
-
-    def currentPack(self):
-        # return current pack number
-        return self.count//(self.rows*self.columns)
-
-    def filename(self):
-        # return vobsub filename against current packing file
-        return f'{self.prefix}{self.currentPack():{self.int_width}}.{self.extension}'
-
-    def getCues(self, source_image, width, height):
-        # return string containing file pack, with corresponding
-        # drift X and Y, and original image filename
-        if width > self.largest: self.largest=width
-
-        if not (self.count+1) % self.rows:
-            self.driftX+=self.largest
-            self.largest=0
-            self.driftY=0
-        elif not (self.count+1) % (self.rows * self.columns):
-            self.driftX, self.largest=0, 0
-
-        output=f'{self.filename()} {width}×{height}:{self.driftX}:{self.driftY} org:{source_image}\n'
-        self.driftY+=height
-        self.count+=1
-        return output
-
-pack=PackImages(1892, prefix=pack_vobsub_prefix, extension=pack_vobsub_extension)
-
+pack=PackImages(1892, prefix=pack_vobsub_prefix, extension=pack_vobsub_extension, rows=rows, columns=columns)
+last_image_processed=None
 webvtt_file=open(webvtt_filename, 'w')
 webvtt_file.write(f'WEBVTT - {basename}\n')
-webvtt_file.write(f'NOTE file generated with {cliParser.prog} {str(datetime.datetime.now()).split('.')[0]}\n')
+webvtt_file.write(f'NOTE file generated with {cliParser.prog} {str(datetime.datetime.now()).split('.')[0]}')
 while True:
     '''
     PGS: Presentation Graphic Stream
-    2 bytes, Magic Number: "PG" (0x5047)
+    2 bytes, Magic Number: "PG" (0x50 0x47)
     4 bytes, PTS: Presentation Timestamp (milliseconds with a frequency 90kHz)
     4 bytes, DTS: Decoding Timestamp (milliseconds with a frequency 90kHz)
     1 byte,  Segment Type: 0x14: PDS, 0x15: ODS, 0x16: PCS, 0x17: WDS, 0x80: END
-    2 bytes, Segment Size: Size of the segment
+    2 bytes, Segment Size
     |PCS|
             |WDS|PDS|ODS| |WDS|PDS|ODS| … |WDS|PDS|ODS|
     |END|
+    or
+    |PCS|WDS|END|
     '''
-    # bytes must be slice everytimes, if not an integer is return
-    # bytes[0] != bytes[0:1] because bytes[0] convert into integer
+    # Read PGS header
     bytes=supfile.read(13)
     magicNumber=bytes[:2]
     if not magicNumber: break
@@ -430,7 +416,7 @@ while True:
     segtype=bytes[10:11]
     size=int.from_bytes(bytes[11:13])
     subData=supfile.read(size)
-
+    # handle segment by its type
     if ( segtype == b'\x14' ):
         # PDS
         palette=readPDS(subData)
@@ -445,7 +431,11 @@ while True:
         currentWPO={'wds': None, 'pds': None, 'ods': None}
     elif ( segtype == b'\x16' ):
         # PCS
-        presentationCompositionSegment=readPCS(subData)
+        presentationCompositionSegment=readPCS(subData, pts)
+        if presentationCompositionSegment.comp_state == 'epoch_start':
+            current_webvtt_cue=[(presentationCompositionSegment.comp_n//2)+1, ms2time(pts)]
+        else:
+            current_webvtt_cue.insert(2, ms2time(pts))
         currentDS['pcs']=presentationCompositionSegment
     elif ( segtype == b'\x17' ):
         # WDS
@@ -453,36 +443,51 @@ while True:
         currentWPO['wds']=windowDefinitionSegment
     elif ( segtype == b'\x80' ):
         # END
-        # create image with current display set
-        if currentDS['pcs'].nof_obj:
-            current_webvtt_cue.extend([image_count+1, ms2time(pts)])
-        else:
-            current_webvtt_cue.append(ms2time(pts))
-        n=0
-        while n < currentDS['pcs'].nof_obj:
-            win_size=(currentDS['wpo_list'][n].ods.width, currentDS['wpo_list'][n].ods.height)
-            obj_bytes=currentDS['wpo_list'][n].ods.obj_data
-            palette=currentDS['wpo_list'][n].pds.palette
-            image = Image.new('P', win_size, 255)
-            readObject(image, obj_bytes)
-            image.putpalette(palette)
-            image_filepath=f'/tmp/{image_prefix}{image_count:04d}.{image_extension}'
-            image.save(image_filepath)
-            pack_filename=f'/tmp/{image_prefix}{packFilename(image_count)}.{image_extension}'
-            webvtt_file.write('\n{0}\n{1} --> {2}\n'.format(*current_webvtt_cue, ms2time(pts)))
-            webvtt_file.write(pack.getCues(image_filepath, win_size[0], win_size[1]))
-            print(f'{image_filepath} saved.', end='\r')
-            image.close()
-            image_count+=1
-            n+=1
+        # PCS with empty object is an end of the current subtitle
+        if currentDS['pcs'].nof_obj != 0:
+            current_webvtt_cue.append(pack.makeImage(currentDS))
+            continue
+        # end of the current subtitle, so write it
+        webvtt_file.write('\n\n{0}\n{1} --> {2}\n{3}'.format(*current_webvtt_cue))
         # reset display set
         currentDS={'pcs': None, 'wpo_list': []}
-        # reset current webvtt cue
-        current_webvtt_cue=[]
-        if ( image_count >= max_ds ): break
-
     else:
         print(f'Unknown segment type ({segtype}), skipping.')
-print(f'\n{image_count} image saved.')
-print(f'{webvtt_filename} created.')
+
+print(f'\n{pack.count} image saved.')
 webvtt_file.close()
+print(f'{webvtt_filename} created.')
+pack.endPack()
+
+path='/tmp/'
+rows_prefix='rows-'
+pack_prefix=image_prefix
+pack_file_format=f'{path}{pack_prefix}{{:02d}}{pack_vobsub_extension}'
+rows_file_format=f'{path}{rows_prefix}{{:02d}}{pack_vobsub_extension}'
+single_column=namedtuple('APackOfRows', 'filename begin end')
+format_width=len(str(pack.count))
+string_format=f'{{:0{format_width}d}}'
+nof_pack=pack.count//rows
+
+# pack rows
+print('pack rows…')
+cmd='bash -c "convert {}{}{{{:04d}..{:04d}}}.{} -append {}{}{:02d}.{}"'
+for n in range(0, nof_pack):
+    os.system(cmd.format(path, image_prefix, n*rows, ((n+1)*rows)-1, image_extension, path, rows_prefix, n, image_extension))
+if ( pack.count % rows ) > 0:
+    os.system(cmd.format(path, image_prefix, nof_pack*rows, pack.count-1, image_extension, path, rows_prefix, nof_pack, image_extension))
+
+# final pack:rows*columns
+print('pack final image and add transparency…')
+nof_image=nof_pack
+nof_pack=nof_image//columns
+cmd='bash -c "convert {}{}{{{:02d}..{:02d}}}.{} +append {}{}{}.{}"'
+filter='bash -c "mogrify -transparent \'rgb(0, 135, 0)\' -transparent \'rgb(255, 255, 255)\' {}{}{}.{}"'
+for n in range(0, nof_pack):
+    os.system(cmd.format(path, rows_prefix, n*columns, ((n+1)*columns-1), image_extension, path, pack_prefix, n, pack_vobsub_extension))
+    os.system(filter.format(path, pack_prefix, n, pack_vobsub_extension))
+if ( nof_image % columns ) > 0:
+    os.system(cmd.format(path, rows_prefix, nof_pack*columns, nof_image, image_extension, path, pack_prefix, nof_pack, pack_vobsub_extension))
+    os.system(filter.format(path, pack_prefix, n, pack_vobsub_extension))
+
+# TODO: handle when number of image generated are less than rows, so only one file needed
