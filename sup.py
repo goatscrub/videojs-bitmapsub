@@ -4,7 +4,7 @@
 # https://blog.thescorpius.com/index.php/2017/07/15/presentation-graphic-stream-sup-files-bluray-subtitle-format/
 # find a copy into doc sub folder
 
-import sys, os, itertools, argparse, datetime, math
+import sys, os, itertools, argparse, datetime, math, tempfile
 from PIL import Image, ImageDraw, ImageShow
 from collections import namedtuple
 
@@ -17,6 +17,8 @@ cliParser.add_argument('filename')
 cliParser.add_argument('-c', '--columns', action='store', default=4, type=int)
 cliParser.add_argument('-d', '--debug', action='store_true', default='store_false')
 cliParser.add_argument('-r', '--rows', action='store', default=128, type=int)
+cliParser.add_argument('-l', '--limit', action='store', default=9999, type=int)
+cliParser.add_argument('-t', '--targetDirectory', action='store', default=os.getcwd(), type=str)
 cliArgs=cliParser.parse_args()
 
 enable_debug=cliArgs.debug
@@ -29,46 +31,16 @@ if (os.path.isfile(cliArgs.filename)):
     image_extension='png'
     # define webvtt filename
     webvtt_filename=os.path.splitext(basename)[0]+'.vtt'
-    pack_vobsub_prefix=os.path.splitext(basename)[0]+'-'
-    pack_vobsub_extension='vobsub.png'
+    pack_prefix=os.path.splitext(basename)[0]+'-'
+    pack_extension='png'
 else:
     print(f'File \'{cliArgs.filename}\' does not exist, abort.')
     sys.exit(1)
+if not os.path.isdir(cliArgs.targetDirectory):
+    print('Destination folder does not exist, abort.')
+    sys.exit(1)
 rows, columns = cliArgs.rows, cliArgs.columns
 test_maxbytes = 256
-
-def search_nof_subs(read_bytes):
-    n, maxbytes = 0, len(read_bytes)
-    while n < maxbytes:
-        n += 1
-        byte = read_bytes[maxbytes-n:maxbytes-n+1]
-        if ( byte == b'G' ):
-            n += 1
-            byte = read_bytes[maxbytes-n:maxbytes-n+1]
-            if ( byte == b'P' ):
-                pgs_offset = 13
-                pgs = read_bytes[maxbytes-n:maxbytes-n+pgs_offset]
-                if ( pgs[10:11] == b'\x16' ):
-                    pcs_size = int.from_bytes(pgs[11:13])
-                    pcs_bytes = read_bytes[maxbytes-n+pgs_offset:maxbytes-n+pgs_offset+pcs_size]
-                    w=int.from_bytes(pcs_bytes[:2])
-                    h=int.from_bytes(pcs_bytes[2:4])
-                    composition_number=int.from_bytes(pcs_bytes[5:7])
-                    return f'{w}x{h} {(composition_number//2)+1:d}'
-    else:
-        return ''
-
-# check supfile header, search PG 0x50,0x47
-if ( supfile.read(2) != b'PG' ):
-    print('Wrong header file, this file does not seems to be a sup file, abort.')
-    sys.exit(1)
-else:
-    # seek to last byte available
-    supfile.seek(-test_maxbytes, 2)
-    # save lasts bytes
-    read_bytes = supfile.read(test_maxbytes)
-    supfile_info = search_nof_subs(read_bytes)
-    supfile.seek(0)
 
 PCS={
     'compositionState': {
@@ -81,7 +53,6 @@ PCS={
         b'\x00': False,
     }
 }
-
 pgs=namedtuple('PresentationGraphicStream', 'pts dts ds')
 pcs=namedtuple('PresentationCompositionSegment', [
     'video_width', 'video_height',
@@ -98,6 +69,8 @@ wpo=namedtuple('WindowPaletteObject', 'wds pds ods')
 end=namedtuple('END', '')
 co=namedtuple('CompositionObject', 'id window_id cropped_flag pos_x pos_y crop_pos_x crop_pos_y crop_width crop_height')
 packDescription=namedtuple('packOfSub', 'subfile begin end')
+single_column=namedtuple('APackOfRows', 'filename begin end')
+LINE_CLEAR='\x1b[2K'
 
 class Drawer:
     def __init__(self, image):
@@ -120,14 +93,16 @@ class Drawer:
 
 class PackImages:
 
-    def __init__(self, total_images, prefix='img-', extension='png', rows=128, columns=4):
-        self.rows, self.columns, self.total_images=rows, columns, total_images
-        self.driftX, self.driftY, self.count, self.largest=0, 0, 0, 0
-        self.prefix, self.extension=prefix, extension
+    def __init__(self, total_images, prefix = 'subtitle-', extension='png', rows=128, columns=4):
+        self.rows, self.columns, self.total_images = rows, columns, total_images
+        self.driftX, self.driftY, self.count, self.largest = 0, 0, 0, 0
+        self.prefix, self.extension, self.subtitle_prefix = prefix, extension, 'subtitle-'
         self.nof_pack = math.ceil(self.total_images / ( self.rows * self.columns ))
-        self.int_width=f'0{len(str(self.nof_pack))}d'
+        self.subtitle_int_width = f'0{len(str(self.total_images))}d'
+        self.pack_int_width = f'0{len(str(self.nof_pack))}d'
         self.packs, self.current_pack = [], None
-        self.current_column, self.column_count=[], 0
+        self.current_column, self.column_count = [], 0
+        self.tmpd = tempfile.TemporaryDirectory(prefix=cliParser.prog+'-', delete=not enable_debug)
 
     def currentPack(self):
         # return current pack number
@@ -135,17 +110,17 @@ class PackImages:
 
     def filename(self):
         # return vobsub filename against current packing file
-        return f'{self.prefix}{self.currentPack():{self.int_width}}.{self.extension}'
+        return f'{self.prefix}{self.currentPack():{self.pack_int_width}}.{self.extension}'
 
     def startPack(self):
-        self.current_pack=[self.filename(), f'{self.count:04d}']
+        self.current_pack=[self.filename(), f'{self.count:{self.subtitle_int_width}}']
 
     def endPack(self):
-        self.current_pack.append(f'{self.count:04d}')
+        self.current_pack.append(f'{self.count:{self.subtitle_int_width}}')
         self.packs.append(packDescription(*self.current_pack))
         self.current_pack=None
 
-    def getCues(self, width, height):
+    def getCue(self, width, height):
         if not self.current_pack: self.startPack()
         # return string containing file pack, with corresponding drift X and Y
         if width > self.largest: self.largest=width
@@ -153,22 +128,23 @@ class PackImages:
         if not (self.count) % (self.rows * self.columns):
             # changing pack file
             self.endPack()
-            # reset drift and largest
+            # reset drift and largest subtitle
             self.driftX, self.driftY, self.largest = 0, 0, 0
         elif not (self.count) % self.rows:
-            # change column into current pack
+            # update column drift into current pack,
+            # reset drift row and reset largest subtitle
             self.driftX+=self.largest
             self.largest=0
             self.driftY=0
 
-        output=f'{self.filename()} {width}×{height}:{self.driftX}:{self.driftY}'
+        output=f'{self.filename()} {width}:{height}:{self.driftX}:{self.driftY}'
         self.driftY+=height
         self.count+=1
         return output
 
     def makeImage(self, ds):
         ''' Create image with a display set
-            return cue content from PackImage.getCues()
+            return cue content from PackImage.getCue()
         '''
         n=0
         while n < ds['pcs'].nof_obj:
@@ -178,12 +154,45 @@ class PackImages:
             image = Image.new('P', win_size, 255)
             readObject(image, obj_bytes)
             image.putpalette(palette)
-            image_filepath=f'/tmp/{image_prefix}{ds['pcs'].comp_n//2:04d}.{image_extension}'
+            image_filepath=os.path.join(
+                self.tmpd.name,
+                f'{self.subtitle_prefix}{ds['pcs'].comp_n//2:{self.subtitle_int_width}}.{self.extension}')
             image.save(image_filepath)
             image.close()
             n+=1
-            # print(f'{image_filepath} saved.', end='\r')
-        return pack.getCues(win_size[0], win_size[1])
+        return (pack.getCue(win_size[0], win_size[1]), image_filepath)
+
+def ms2time(milliseconds):
+    ''' Convert milliseconds into string time like: HH:MM:SS.mm'''
+    time=str(datetime.timedelta(milliseconds=milliseconds)).split('.')
+    if len(time) > 1:
+        ms=time[1][:-3]
+    else:
+        ms='000'
+    return '{:>02s}:{}:{}.{}'.format(*time[0].split(':'), ms)
+
+def search_nof_subs(read_bytes):
+    ''' Try to found last PCS into read_bytes
+        and compute number of subtitles (composition_number//2)
+    '''
+    n, maxbytes = 0, len(read_bytes)
+    while n < maxbytes:
+        n += 1
+        byte = read_bytes[maxbytes-n:maxbytes-n+1]
+        if ( byte == b'G' ):
+            n += 1
+            byte = read_bytes[maxbytes-n:maxbytes-n+1]
+            if ( byte == b'P' ):
+                pgs_offset = 13
+                pgs = read_bytes[maxbytes-n:maxbytes-n+pgs_offset]
+                if ( pgs[10:11] == b'\x16' ):
+                    pcs_size = int.from_bytes(pgs[11:13])
+                    pcs_bytes = read_bytes[maxbytes-n+pgs_offset:maxbytes-n+pgs_offset+pcs_size]
+                    # PCS pts value is not important here
+                    pcs = readPCS(pcs_bytes, 0)
+                    return f'{pcs.video_width} {pcs.video_height} {(pcs.comp_n//2)+1:d}'
+    else:
+        return ''
 
 def validateRange(value):
     if (value < 0): return 0
@@ -375,24 +384,37 @@ def readODS(bytes):
         bytes[11:]
     )
 
-def ms2time(milliseconds):
-    ''' Convert milliseconds into string time like: HH:MM:SS.mm'''
-    time=str(datetime.timedelta(milliseconds=milliseconds)).split('.')
-    if len(time) > 1:
-        ms=time[1][:-3]
-    else:
-        ms='000'
-    return '{:>02s}:{}:{}.{}'.format(*time[0].split(':'), ms)
+# check supfile header, search PG 0x50,0x47
+if ( supfile.read(2) != b'PG' ):
+    print('Wrong header file, this file does not seems to be a sup file, abort.')
+    sys.exit(1)
+else:
+    # try to determine total number of subtitles
+    # seek to last byte available
+    supfile.seek(-test_maxbytes, 2)
+    # save lasts bytes
+    read_bytes = supfile.read(test_maxbytes)
+    supfile_info = search_nof_subs(read_bytes)
+    if supfile_info:
+        supfileInfo = namedtuple('SupfileInformation', 'v_width v_height nof_subs')
+        supfile_info = supfileInfo(*[ int(e) for e in supfile_info.split() ])
+    supfile.seek(0)
+    # TODO: what to do when no info ?
 
 # current display set
 currentDS={'pcs': None, 'wpo_list': []}
 currentWPO={'wds': None, 'pds': None, 'ods': None}
 current_webvtt_cue=[]
-pack=PackImages(1892, prefix=pack_vobsub_prefix, extension=pack_vobsub_extension, rows=rows, columns=columns)
-last_image_processed=None
-webvtt_file=open(webvtt_filename, 'w')
+pack=PackImages(supfile_info.nof_subs, prefix=pack_prefix, rows=rows, columns=columns)
+webvtt_path = os.path.join(pack.tmpd.name, webvtt_filename)
+webvtt_file=open(webvtt_path, 'w')
 webvtt_file.write(f'WEBVTT - {basename}\n')
-webvtt_file.write(f'NOTE file generated with {cliParser.prog} {str(datetime.datetime.now()).split('.')[0]}')
+webvtt_file.write('NOTE\n')
+webvtt_file.write('file generated with {0} {1}\n'.format(
+    cliParser.prog,
+    str(datetime.datetime.now()).split('.')[0]
+))
+webvtt_file.write('cue format file-bitmap.png width:height:driftX:driftY\n')
 while True:
     '''
     PGS: Presentation Graphic Stream
@@ -445,49 +467,78 @@ while True:
         # END
         # PCS with empty object is an end of the current subtitle
         if currentDS['pcs'].nof_obj != 0:
-            current_webvtt_cue.append(pack.makeImage(currentDS))
+            cue, image_filepath = pack.makeImage(currentDS)
+            print(f'{image_filepath} saved.', end='\r')
+            current_webvtt_cue.append(cue)
             continue
         # end of the current subtitle, so write it
-        webvtt_file.write('\n\n{0}\n{1} --> {2}\n{3}'.format(*current_webvtt_cue))
+        webvtt_file.write('\n{0}\n{1} --> {2}\n{3}\n'.format(*current_webvtt_cue))
         # reset display set
         currentDS={'pcs': None, 'wpo_list': []}
+        if pack.count >= cliArgs.limit: break
     else:
         print(f'Unknown segment type ({segtype}), skipping.')
 
-print(f'\n{pack.count} image saved.')
+print(f'{LINE_CLEAR}\r{pack.count} image saved.')
 webvtt_file.close()
-print(f'{webvtt_filename} created.')
+files=[webvtt_path]
+print(f'{webvtt_path} created.')
 pack.endPack()
+if not pack.count:
+    print('Unable to retrieve subtitle from supfile, abort.')
+    sys.exit(1)
 
-path='/tmp/'
+# image packing
 rows_prefix='rows-'
-pack_prefix=image_prefix
-pack_file_format=f'{path}{pack_prefix}{{:02d}}{pack_vobsub_extension}'
-rows_file_format=f'{path}{rows_prefix}{{:02d}}{pack_vobsub_extension}'
-single_column=namedtuple('APackOfRows', 'filename begin end')
-format_width=len(str(pack.count))
-string_format=f'{{:0{format_width}d}}'
 nof_pack=pack.count//rows
 
 # pack rows
-print('pack rows…')
-cmd='bash -c "convert {}{}{{{:04d}..{:04d}}}.{} -append {}{}{:02d}.{}"'
+print('pack rows…', end='')
+cmd = 'bash -c "convert {0}{{%{1}..%{2}}}.{3} -append {4}%0{5}d.{6}"'.format(
+    os.path.join(pack.tmpd.name, pack.subtitle_prefix),
+    pack.subtitle_int_width, pack.subtitle_int_width,
+    pack_extension,
+    os.path.join(pack.tmpd.name, rows_prefix),
+    len(str(nof_pack)),
+    image_extension
+)
 for n in range(0, nof_pack):
-    os.system(cmd.format(path, image_prefix, n*rows, ((n+1)*rows)-1, image_extension, path, rows_prefix, n, image_extension))
+    os.system(cmd % (n*rows, ((n+1)*rows)-1, n))
+    print('.', end=''),
 if ( pack.count % rows ) > 0:
-    os.system(cmd.format(path, image_prefix, nof_pack*rows, pack.count-1, image_extension, path, rows_prefix, nof_pack, image_extension))
+    os.system(cmd % (nof_pack*rows, pack.count-1, nof_pack))
+    # append one pack to counter
+    nof_pack += 1
+    print('.', end=''),
+print()
 
 # final pack:rows*columns
-print('pack final image and add transparency…')
+print('pack final image and add transparency…', end='')
 nof_image=nof_pack
 nof_pack=nof_image//columns
-cmd='bash -c "convert {}{}{{{:02d}..{:02d}}}.{} +append {}{}{}.{}"'
-filter='bash -c "mogrify -transparent \'rgb(0, 135, 0)\' -transparent \'rgb(255, 255, 255)\' {}{}{}.{}"'
+cmd = 'bash -c "convert {0}{{%0{1}d..%0{2}d}}.{3} +append {4}%0{5}d.{6}"'.format(
+    os.path.join(pack.tmpd.name, rows_prefix),
+    len(str(nof_image)), len(str(nof_image)),
+    image_extension,
+    os.path.join(pack.tmpd.name, pack_prefix),
+    len(str(nof_pack)),
+    image_extension
+)
+filter='bash -c "mogrify -transparent \'rgb(0, 135, 0)\' -transparent \'rgb(255, 255, 255)\' {}"'
 for n in range(0, nof_pack):
-    os.system(cmd.format(path, rows_prefix, n*columns, ((n+1)*columns-1), image_extension, path, pack_prefix, n, pack_vobsub_extension))
-    os.system(filter.format(path, pack_prefix, n, pack_vobsub_extension))
+    os.system(cmd % ( n*columns, ((n+1)*columns)-1, n))
+    final_filename='{}{}.{}'.format(os.path.join(pack.tmpd.name, pack_prefix), n, pack_extension)
+    os.system(filter.format(final_filename))
+    files.append(final_filename)
+    print('.', end=''),
 if ( nof_image % columns ) > 0:
-    os.system(cmd.format(path, rows_prefix, nof_pack*columns, nof_image, image_extension, path, pack_prefix, nof_pack, pack_vobsub_extension))
-    os.system(filter.format(path, pack_prefix, n, pack_vobsub_extension))
+    os.system(cmd % ( nof_pack*columns, nof_image-1, nof_pack))
+    final_filename='{}{}.{}'.format(os.path.join(pack.tmpd.name, pack_prefix), nof_pack, pack_extension)
+    os.system(filter.format(final_filename))
+    files.append(final_filename)
+    print('.', end=''),
+print()
 
-# TODO: handle when number of image generated are less than rows, so only one file needed
+# TODO: check if files already exists
+for f in files:
+    os.system('mv {} {}'.format(f, cliArgs.targetDirectory))
