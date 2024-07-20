@@ -4,86 +4,99 @@ const videojsPlugin = videojs.getPlugin('plugin')
 
 class BitmapSub extends videojsPlugin {
 
-    subMenu
     subtitleTracks = []
-    currentSubtitle
-    player
-    options
-    screenWidth = 0
-    screenHeight = 0
     subtitleLineHeightRatio = 16.5
-    container
+    screenHeight = Math.floor(window.devicePixelRatio * screen.height)
 
     constructor(player, options) {
         super(player, options)
         this.player = player
         this.options = options
-
         this.init()
     }
 
     init() {
-        this.screenWidth = Math.floor(window.devicePixelRatio * screen.width)
-        this.screenHeight = Math.floor(window.devicePixelRatio * screen.height)
-        if (this.options.startupSeek) this.player.currentTime(this.options.startupSeek)
-        this.subMenu = this.player.controlBar.subsCapsButton.menu
+        // save tracks
+        this.tracks = this.player.textTracks()
+        // instantiate Bitmap Subtitle Component
+        this.bmpComponent = new BitmapSubComponent(this.player, this.options)
         const vjsSubsCapsMenuItem = videojs.getComponent('SubsCapsMenuItem')
-        const tracks = this.player.textTracks()
-        this.container = new BitmapSubComponent(this.player, this.options)
-
-        for (let i = 0; i < tracks.length; i++) {
-            if (tracks[i].kind == 'metadata' && tracks[i].label.startsWith('bitmap:')) {
-                this.subtitleTracks.push(tracks[i])
-                const item = new vjsSubsCapsMenuItem(this.player, {
-                    track: {
-                        label: tracks[i].label.split(':')[2],
-                        language: tracks[i].language,
-                        id: tracks[i].id,
-                        default: tracks[i].default,
-                    },
-                })
-                // add native bitmap subtitle size
-                tracks[i].bitmapsub = { width: tracks[i].label.split(':')[1] }
-                if (tracks[i].default) {
-                    tracks[i].mode = 'hidden'
-                    this.currentSubtitle = tracks[i]
-                    this.selectItem(item)
-                } else {
-                    tracks[i].mode = 'disabled'
-                }
-                item.handleClick = () => {
-                    this.selectItem(item)
-                    this.changeTrack(item.track.id)
-                }
-                this.subMenu.addChild(item)
+        // off subtitle button
+        this.offSubtitle = this.player.controlBar.subsCapsButton.menu.children().filter(
+            c => c.constructor.name == 'OffTextTrackMenuItem'
+        ).shift()
+        // build menu tracks and associate clicks
+        for (let i = 0; i < this.tracks.length; i++) {
+            if (this.tracks[i].kind != 'metadata' && !this.tracks[i].label.startsWith('bitmap:')) return
+            this.subtitleTracks.push(this.tracks[i])
+            // build new menu item
+            const item = new vjsSubsCapsMenuItem(this.player, {
+                track: {
+                    label: this.tracks[i].label.split(':')[2] + ' ⋅BMP',
+                    language: this.tracks[i].language,
+                    id: this.tracks[i].id,
+                    default: this.tracks[i].default,
+                },
+            })
+            // add native bitmap subtitle size
+            this.tracks[i].bitmapsub = { width: this.tracks[i].label.split(':')[1] }
+            if (this.tracks[i].default) {
+                this.tracks[i].mode = 'hidden'
+                this.currentSubtitle = this.tracks[i]
+                this.selectItem(item)
+            } else {
+                this.tracks[i].mode = 'disabled'
             }
+            item.handleClick = () => {
+                this.selectItem(item)
+                this.changeTrack(item.track.id)
+            }
+            // append item to subtitle menu
+            this.player.controlBar.subsCapsButton.menu.addChild(item)
         }
 
         if (!this.subtitleTracks.length) return
 
-        this.player.addChild(this.container)
-        this.player.controlBar.subsCapsButton.show()
-        this.currentSubtitle.addEventListener('cuechange', this.handleBitmapSubtitle.bind(this))
-
-        this.player.on('playerresize', e => {
-            const scaleSize = (this.player.textTrackDisplay.dimension('width') / this.currentSubtitle.bitmapsub.width).toFixed(2)
-            this.container.el().style.scale = `${scaleSize}`
-            if (!this.player.isFullscreen()) return
-            this.adjustSubtitleBottom()
-        })
-
-        this.player.on('fullscreenchange', e => {
-            if (this.player.isFullscreen()) {
-                this.adjustSubtitleBottom()
-            } else {
-                this.container.el().style.bottom = '0px'
+        this.offSubtitle.handleClick = () => {
+            // on click disable all tracks
+            for (let i = 0; i < this.tracks.length; i++) {
+                this.tracks[i].mode = 'disabled'
             }
-        })
+            this.disableSubtitle()
+        }
+        this.subtitle = this.bmpComponent.el().querySelector('#bitmap-subtitle')
+        this.player.addChild(this.bmpComponent)
+        // display subtitle button into menu
+        this.player.controlBar.subsCapsButton.show()
+
+        // TODO move into handle function
+        this.player.on('fullscreenchange', this.adjustSubtitleBottom.bind(this))
+
+        this.player.on('playerresize', this.handlePlayerResize.bind(this))
+        if (!this.currentSubtitle) return
+        this.currentSubtitle.addEventListener('cuechange', this.handleBitmapSubtitle.bind(this))
+    }
+
+    handlePlayerResize() {
+        if (!this.currentSubtitle) return
+        const scaleSize = (this.player.textTrackDisplay.dimension('width') / this.currentSubtitle.bitmapsub.width).toFixed(2)
+        this.bmpComponent.el().style.scale = `${scaleSize}`
+        this.adjustSubtitleBottom()
+    }
+
+    disableSubtitle() {
+        this.player.controlBar.subsCapsButton.menu
+            .children().forEach(
+                e => e.removeClass('vjs-selected')
+            )
+        this.offSubtitle.addClass('vjs-selected')
+        this.bmpComponent.hide()
     }
 
     selectItem(item) {
-        this.player.controlBar.subsCapsButton.menu.children().forEach(
-            e => e.removeClass('vjs-selected'))
+        this.disableSubtitle()
+        this.bmpComponent.show()
+        this.offSubtitle.removeClass('vjs-selected')
         item.addClass('vjs-selected')
     }
 
@@ -93,41 +106,48 @@ class BitmapSub extends videojsPlugin {
             const chunks = this.currentSubtitle.activeCues[0].text.split(' ')
             const backgroundImage = [this.options.pathPrefix, chunks[0]].join('/')
             const [width, height, driftX, driftY] = chunks[1].split(':')
-            vobsub.style.width = `${width}px`
-            vobsub.style.height = `${height}px`
-            vobsub.style.backgroundPositionY = `-${driftY}px`
-            vobsub.style.backgroundPositionX = `-${driftX}px`
-            vobsub.style.backgroundImage = `url(${backgroundImage})`
-            this.container.el().style.opacity = 1
+            this.subtitle.style.width = `${width}px`
+            this.subtitle.style.height = `${height}px`
+            this.subtitle.style.backgroundImage = `url(${backgroundImage})`
+            this.subtitle.style.backgroundPositionY = `-${driftY}px`
+            this.subtitle.style.backgroundPositionX = `-${driftX}px`
+            this.bmpComponent.el().style.opacity = 1
         } else {
             // active cues ends
-            this.container.el().style.opacity = 0
+            this.bmpComponent.el().style.opacity = 0
         }
     }
 
     changeTrack(id) {
-        const tracks = this.player.textTracks()
-        for (let i = 0; i < tracks.length; i++) {
-            if (tracks[i].id == id) {
-                tracks[i].mode = 'hidden'
-                try {
-                    this.currentVobsub.removeEventListener('cuechange', this.handleBitmapSubtitle)
-                } catch (TypeError) { }
-                this.currentVobsub = tracks[i]
-                this.currentVobsub.addEventListener('cuechange', this.handleBitmapSubtitle.bind(this))
+        for (let i = 0; i < this.tracks.length; i++) {
+            if (this.tracks[i].id != id) {
+                this.tracks[i].mode = 'disabled'
                 continue
             }
-            tracks[i].mode = 'disabled'
+            this.tracks[i].mode = 'hidden'
+            try {
+                this.currentSubtitle.removeEventListener('cuechange', this.handleBitmapSubtitle)
+            } catch (TypeError) { }
+            this.currentSubtitle = this.tracks[i]
+            this.handlePlayerResize()
+            this.currentSubtitle.addEventListener('cuechange', this.handleBitmapSubtitle.bind(this))
         }
     }
 
     adjustSubtitleBottom() {
-        const videoBottomEdge = (this.screenHeight - this.player.textTrackDisplay.dimension('height')) / 2
-        this.container.el().style.bottom = `${videoBottomEdge + 64}px`
+        // bottom of video is computed against textTrackDisplay
+        // dimensions, device aspect ration must be applied
+        const videoBottom = this.player.isFullscreen()
+            ? ((screen.height - this.player.textTrackDisplay.height()) / 2)
+            : 0
+        // adding extra bottom space based on arbitrary video height fraction
+        const bottomGap = (this.player.children()[0].getBoundingClientRect().height / 32)
+        const drift = (videoBottom + bottomGap) * window.devicePixelRatio
+        this.bmpComponent.el().style.bottom = `${drift}px`
     }
 }
 
-VobSub.VERSION = '0.1.0'
-videojs.registerPlugin('vobsub', VobSub)
+BitmapSub.VERSION = '0.1.1'
+videojs.registerPlugin('bitmapsub', BitmapSub)
 
-export default VobSub
+export default BitmapSub
