@@ -3,6 +3,8 @@ import { BitmapSubComponent } from './bitmap-subtitle.components.js'
 const videojsPlugin = videojs.getPlugin('plugin')
 
 class BitmapSub extends videojsPlugin {
+    // TODO: don't display subtitle if player won't play
+    // TODO: passthrough subtitle event
 
     subtitleTracks = []
     subtitleLineHeightRatio = 16.5
@@ -57,6 +59,9 @@ class BitmapSub extends videojsPlugin {
 
         if (!this.subtitleTracks.length) return
 
+        this.css = [...document.styleSheets]
+            .find(css => css.ownerNode.id == 'css-bitmap-subtitle').cssRules
+        this.activeContainerStyle = [...this.css].find(r => r.selectorText == '#bitmapsub-container').style
         this.offSubtitle.handleClick = () => {
             // on click disable all tracks
             for (let i = 0; i < this.tracks.length; i++) {
@@ -135,19 +140,23 @@ class BitmapSub extends videojsPlugin {
     }
 
     adjustSubtitleBottom() {
-        // bottom of video is computed against textTrackDisplay
-        // dimensions, device aspect ration must be applied
-        const videoBottom = this.player.isFullscreen()
-            ? ((screen.height - this.player.textTrackDisplay.height()) / 2)
-            : 0
         // adding extra bottom space based on arbitrary video height fraction
-        const bottomGap = (this.player.children()[0].getBoundingClientRect().height / 32)
-        const drift = (videoBottom + bottomGap) * window.devicePixelRatio
-        this.bmpComponent.el().style.bottom = `${drift}px`
+        const subtitleBottomMargin = (this.player.children()[0].getBoundingClientRect().height / 32) * window.devicePixelRatio
+        const ctrlBarHeight = this.player.controlBar.height()
+        let drift = subtitleBottomMargin
+        if (this.player.isFullscreen()) {
+            // bottom of video is computed against textTrackDisplay
+            // dimensions, device aspect ration must be applied
+            const videoBottomBlank = ((screen.height - this.player.textTrackDisplay.height()) / 2)
+            videoBottomBlank >= ctrlBarHeight
+                ? drift += videoBottomBlank
+                : drift += ctrlBarHeight
+        }
+        this.activeContainerStyle.setProperty('--drift', `${drift}px`)
     }
 }
 
-BitmapSub.VERSION = '0.1.1'
+BitmapSub.VERSION = '0.1.3'
 videojs.registerPlugin('bitmapsub', BitmapSub)
 
 export default BitmapSub
