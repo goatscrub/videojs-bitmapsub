@@ -3,17 +3,23 @@ import { BitmapSubComponent } from './bitmap-subtitle.components.js'
 const videojsPlugin = videojs.getPlugin('plugin')
 
 class BitmapSub extends videojsPlugin {
+    // TODO: passthrough subtitle
     // TODO: don't display subtitle if player won't play
-    // TODO: passthrough subtitle event
 
     subtitleTracks = []
     subtitleLineHeightRatio = 16.5
-    screenHeight = Math.floor(window.devicePixelRatio * screen.height)
+    screenHeight = Math.floor(screen.height * window.devicePixelRatio)
+    options = {
+        pathPrefix: '/bitmapsub/',
+        labelPrefix: '',
+        labelSuffix: ' ⋅BMP',
+        name: 'bitmapsub',
+    }
 
     constructor(player, options) {
         super(player, options)
         this.player = player
-        this.options = options
+        this.options = { ...this.options, ...options }
         this.init()
     }
 
@@ -24,17 +30,17 @@ class BitmapSub extends videojsPlugin {
         this.bmpComponent = new BitmapSubComponent(this.player, this.options)
         const vjsSubsCapsMenuItem = videojs.getComponent('SubsCapsMenuItem')
         // off subtitle button
-        this.offSubtitle = this.player.controlBar.subsCapsButton.menu.children().filter(
+        this.offSubtitle = this.player.controlBar.subsCapsButton.menu.children().find(
             c => c.constructor.name == 'OffTextTrackMenuItem'
-        ).shift()
+        )
+        let witnessFlag = 0
         // build menu tracks and associate clicks
         for (let i = 0; i < this.tracks.length; i++) {
             if (this.tracks[i].kind != 'metadata' && !this.tracks[i].label.startsWith('bitmap:')) return
-            this.subtitleTracks.push(this.tracks[i])
             // build new menu item
             const item = new vjsSubsCapsMenuItem(this.player, {
                 track: {
-                    label: this.tracks[i].label.split(':')[2] + ' ⋅BMP',
+                    label: this.options.labelPrefix + this.tracks[i].label.split(':')[2] + this.options.labelSuffix,
                     language: this.tracks[i].language,
                     id: this.tracks[i].id,
                     default: this.tracks[i].default,
@@ -55,9 +61,10 @@ class BitmapSub extends videojsPlugin {
             }
             // append item to subtitle menu
             this.player.controlBar.subsCapsButton.menu.addChild(item)
+            witnessFlag += 1
         }
 
-        if (!this.subtitleTracks.length) return
+        if (!witnessFlag) return
 
         this.css = [...document.styleSheets]
             .find(css => css.ownerNode.id == 'css-bitmap-subtitle').cssRules
@@ -71,7 +78,7 @@ class BitmapSub extends videojsPlugin {
         }
         this.subtitle = this.bmpComponent.el().querySelector('#bitmap-subtitle')
         this.player.addChild(this.bmpComponent)
-        // display subtitle button into menu
+        // force displaying subtitle button into menu
         this.player.controlBar.subsCapsButton.show()
 
         // TODO move into handle function
@@ -105,7 +112,7 @@ class BitmapSub extends videojsPlugin {
         item.addClass('vjs-selected')
     }
 
-    handleBitmapSubtitle(event) {
+    handleBitmapSubtitle() {
         if (this.currentSubtitle.activeCues.length) {
             // active cues starts
             const chunks = this.currentSubtitle.activeCues[0].text.split(' ')

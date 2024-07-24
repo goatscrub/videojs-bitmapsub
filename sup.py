@@ -5,7 +5,7 @@
 # find a copy into doc sub folder
 
 import sys, os, itertools, argparse, datetime, math, tempfile
-from PIL import Image, ImageDraw, ImageShow
+from PIL import Image, ImageDraw
 from collections import namedtuple
 
 cliParser=argparse.ArgumentParser(
@@ -143,7 +143,7 @@ class PackImages:
         return output
 
     def makeImage(self, ds):
-        ''' Create image with a display set
+        ''' Create image from a display set
             return cue content from PackImage.getCue()
         '''
         n=0
@@ -156,7 +156,8 @@ class PackImages:
             image.putpalette(palette)
             image_filepath=os.path.join(
                 self.tmpd.name,
-                f'{self.subtitle_prefix}{ds['pcs'].comp_n//2:{self.subtitle_int_width}}.{self.extension}')
+                f'{self.subtitle_prefix}{ds['pcs'].comp_n//2:{self.subtitle_int_width}}.{self.extension}'
+            )
             image.save(image_filepath)
             image.close()
             n+=1
@@ -172,23 +173,28 @@ def ms2time(milliseconds):
     return '{:>02s}:{}:{}.{}'.format(*time[0].split(':'), ms)
 
 def search_nof_subs(read_bytes):
-    ''' Try to found last PCS into read_bytes
-        and compute number of subtitles (composition_number//2)
+    ''' Try to found last PCS into read_bytes, because PCS contains
+        video dimensions and composition number. Number of subtitles
+        is compute by composition_number//2.
+        PGS starts with 0x5047 or b'PG'
     '''
     n, maxbytes = 0, len(read_bytes)
     while n < maxbytes:
         n += 1
         byte = read_bytes[maxbytes-n:maxbytes-n+1]
         if ( byte == b'G' ):
+            # found b'G' or 0x47 byte, so now check
+            # if previous byte is 0x50 or b'P'
             n += 1
             byte = read_bytes[maxbytes-n:maxbytes-n+1]
             if ( byte == b'P' ):
+                # PGS header found, now check if sub segment type is PCS
                 pgs_offset = 13
                 pgs = read_bytes[maxbytes-n:maxbytes-n+pgs_offset]
                 if ( pgs[10:11] == b'\x16' ):
                     pcs_size = int.from_bytes(pgs[11:13])
                     pcs_bytes = read_bytes[maxbytes-n+pgs_offset:maxbytes-n+pgs_offset+pcs_size]
-                    # PCS pts value is not important here
+                    # PCS pts value is not important here (set to 0)
                     pcs = readPCS(pcs_bytes, 0)
                     return f'{pcs.video_width} {pcs.video_height} {(pcs.comp_n//2)+1:d}'
     else:
