@@ -3,10 +3,13 @@
 # most information was collected from:
 # https://blog.thescorpius.com/index.php/2017/07/15/presentation-graphic-stream-sup-files-bluray-subtitle-format/
 # find a copy into doc sub folder
+# NOTE: 'nof' mean 'number of'
 
 import sys, os, itertools, argparse, datetime, math, tempfile
 from PIL import Image, ImageDraw
 from collections import namedtuple
+from hashlib import md5
+from wand.image import Image as wimage
 
 cliParser=argparse.ArgumentParser(
     prog=os.path.basename(sys.argv[0]),
@@ -68,8 +71,8 @@ ds = namedtuple('DisplaySet', 'pcs wpo_list')
 wpo=namedtuple('WindowPaletteObject', 'wds pds ods')
 end=namedtuple('END', '')
 co=namedtuple('CompositionObject', 'id window_id cropped_flag pos_x pos_y crop_pos_x crop_pos_y crop_width crop_height')
-packDescription=namedtuple('packOfSub', 'subfile begin end')
-single_column=namedtuple('APackOfRows', 'filename begin end')
+packDescription=namedtuple('packOfSub', 'packFilename columns')
+packColumnDescription=namedtuple('PackOfSubtitleRows', 'columnFilename begin end')
 LINE_CLEAR='\x1b[2K'
 
 class Drawer:
@@ -94,74 +97,154 @@ class Drawer:
 class PackImages:
 
     def __init__(self, total_images, prefix = 'subtitle-', extension='png', rows=128, columns=4):
-        self.rows, self.columns, self.total_images = rows, columns, total_images
+        self.nof_rows, self.nof_columns, self.total_images, self.pack_size = rows, columns, total_images, rows * columns
         self.driftX, self.driftY, self.count, self.largest = 0, 0, 0, 0
         self.prefix, self.extension, self.subtitle_prefix = prefix, extension, 'subtitle-'
-        self.nof_pack = math.ceil(self.total_images / ( self.rows * self.columns ))
-        self.subtitle_int_width = f'0{len(str(self.total_images))}d'
-        self.pack_int_width = f'0{len(str(self.nof_pack))}d'
-        self.packs, self.current_pack = [], None
+        self.packColumnPrefix='column-'
+        self.nof_pack = math.ceil(self.total_images / self.pack_size)
+        self.subtitle_format = f'0{len(str(self.total_images))}d'
+        self.pack_format = f'0{len(str(self.nof_pack))}d'
+        self.packs, self.current_pack = [], []
         self.current_column, self.column_count = [], 0
-        self.tmpd = tempfile.TemporaryDirectory(prefix=cliParser.prog+'-', delete=not enable_debug)
+        self.pack_count=0
+        self.tmpd = tempfile.TemporaryDirectory(prefix=f'{cliParser.prog}-', delete=not enable_debug)
 
-    def currentPack(self):
-        # return current pack number
-        return self.count//(self.rows*self.columns)
+        self.image=Image.new('P', (0, 0))
+        self.image_filepath='/tmp/machin.png'
 
-    def filename(self):
-        # return vobsub filename against current packing file
-        return f'{self.prefix}{self.currentPack():{self.pack_int_width}}.{self.extension}'
+        self.startPack()
+
+    def packFilename(self):
+        # return string representing one bitmap subtitle filename against current packing number
+        return f'{self.prefix}{self.pack_count:{self.pack_format}}.{self.extension}'
+
+    def columnFilename(self):
+        return f'{self.packColumnPrefix}{self.column_count}.{self.extension}'
 
     def startPack(self):
-        self.current_pack=[self.filename(), f'{self.count:{self.subtitle_int_width}}']
+        ''' Define a new list containing first the pack filename
+            followed by subtitle image start number
+            Returns list
+        '''
+        self.pack_count+=1
+        self.current_pack=[self.packFilename(), []]
+        self.startColumn()
 
     def endPack(self):
-        self.current_pack.append(f'{self.count:{self.subtitle_int_width}}')
+        ''' Terminate pack definition by appending to the list the subtitle image number.
+            Create a corresponding packDescription, append it to self.packs list.
+            Reseting current pack
+        '''
+        # self.current_pack.append(self.column_count)
+        self.endColumn()
         self.packs.append(packDescription(*self.current_pack))
-        self.current_pack=None
+        # self.current_pack=[]
+        self.startPack()
+
+    def startColumn(self):
+        self.current_column=[self.columnFilename(), self.count]
+
+    def endColumn(self):
+        self.current_pack[1].append(packColumnDescription(*self.current_column, self.count-1))
+        self.column_count+=1
+        self.startColumn()
 
     def getCue(self, width, height):
-        if not self.current_pack: self.startPack()
-        # return string containing file pack, with corresponding drift X and Y
+        # return a string containing:
+        # {filename of the pack} {width}:{height}:{drift_x}:{drift_y}
+        # print(self.current_pack, self.current_column, self.packs)
         if width > self.largest: self.largest=width
 
-        if not (self.count) % (self.rows * self.columns):
-            # changing pack file
-            self.endPack()
-            # reset drift and largest subtitle
-            self.driftX, self.driftY, self.largest = 0, 0, 0
-        elif not (self.count) % self.rows:
-            # update column drift into current pack,
-            # reset drift row and reset largest subtitle
-            self.driftX+=self.largest
-            self.largest=0
-            self.driftY=0
+        if self.count > 0:
+            if not (self.count % self.pack_size):
+                # terminates current pack
+                self.endPack()
+                # reset drift and largest subtitle image
+                self.driftX, self.driftY, self.largest = 0, 0, 0
+            elif not (self.count % self.nof_rows):
+                # update column drift into current pack,
+                # reset drift row and reset largest subtitle
+                self.driftX+=self.largest
+                self.largest=0
+                self.driftY=0
+                self.endColumn()
 
-        output=f'{self.filename()} {width}:{height}:{self.driftX}:{self.driftY}'
+        output=f'{self.packFilename()} {width}:{height}:{self.driftX}:{self.driftY}'
+        # updating drift Y and count
         self.driftY+=height
         self.count+=1
         return output
 
-    def makeImage(self, ds):
-        ''' Create image from a display set
-            return cue content from PackImage.getCue()
+    def subtitleFilename(self, number):
+        ''' Returns a string of full subtitle image filename path against its number'''
+        return os.path.join(
+            self.tmpd.name,
+            f'{self.subtitle_prefix}{number:{self.subtitle_format}}.{self.extension}'
+        )
+
+    def makeSubtitleImage(self, ds):
+        ''' Create subtitle image from a display set
+            Parameters
+            ----------
+            ds : Display Set
+
+            Returns
+            -------
+            tuple
+                (self.GetCue, image_filepath)
         '''
         n=0
         while n < ds['pcs'].nof_obj:
             win_size=(ds['wpo_list'][n].ods.width, ds['wpo_list'][n].ods.height)
             obj_bytes=ds['wpo_list'][n].ods.obj_data
             palette=ds['wpo_list'][n].pds.palette
-            image = Image.new('P', win_size, 255)
-            readObject(image, obj_bytes)
-            image.putpalette(palette)
-            image_filepath=os.path.join(
-                self.tmpd.name,
-                f'{self.subtitle_prefix}{ds['pcs'].comp_n//2:{self.subtitle_int_width}}.{self.extension}'
-            )
-            image.save(image_filepath)
-            image.close()
+            subtitle_image = Image.new('P', win_size, 0)
+            subtitle_image.putpalette(palette)
+            readObject(subtitle_image, obj_bytes)
+            subtitle_image.putpalette(optimizePalette(palette))
+            subtitle_image_filename=self.subtitleFilename(ds['pcs'].comp_n//2)
+            subtitle_image.save(subtitle_image_filename)
+            subtitle_image.close()
             n+=1
-        return (pack.getCue(win_size[0], win_size[1]), image_filepath)
+        return (pack.getCue(win_size[0], win_size[1]), subtitle_image_filename)
+
+    def appendImageRow(self, image, palette):
+        w=max(self.image.size[0], image.size[0])
+        h=self.image.size[1] + image.size[1]
+        new=Image.new('P', (w, h))
+        new.paste(self.image)
+        new.paste(image, (0, self.image.size[1]))
+        # self.image.close()
+        self.image=new
+        # new.close()
+        self.image.save(self.image_filepath)
+
+    def appendImageColumn(self, image, palette):
+        w=self.image.size[0] + image.size[0]
+        h=max(self.image.size[1] + image.size[1])
+        new=Image.new('P', (w, h))
+        new.paste(self.image)
+        new.paste(image, (0, self.image.size[1]))
+        # self.image.close()
+        self.image=new
+        # new.close()
+        self.image.save(self.image_filepath)
+
+    def appendImage(self, img1, img2):
+        image1=Image.open(img1)
+        image2=Image.open(img2)
+        w=max(image1.size[0], image2.size[0])
+        h=image1.size[1]+image2.size[1]
+        new=Image.new('P', (w,h))
+        new.paste(image1)
+        new.paste(image2, (0,image1.size[1]))
+        return new
+
+    def makePack(self):
+        print(self.packs)
+        for pack in self.packs:
+            for column in pack.columns:
+                pass
 
 def ms2time(milliseconds):
     ''' Convert milliseconds into string time like: HH:MM:SS.mm'''
@@ -217,7 +300,14 @@ def blueChannel(y, cb):
     # blue channel from y and cb channels
     return validateRange(int(y+1.772*(cb-128)))
 
-def readObject(image, bytes):
+def optimizePalette(palette):
+    optz=tuple(sorted(set([ (palette[(n*3)], palette[(n*3)+1], palette[(n*3)+2]) for n in range(len(palette)//3) ])))
+    return [ i for t in optz for i in t ]
+
+def paletteRemap(reference, new, color_index):
+    return new.index(reference[color_index])
+
+def readObject(image, obj_bytes):
     '''
     C: color, L: length, 0: default color
     1 byte : CCCCCCCC
@@ -229,20 +319,27 @@ def readObject(image, bytes):
     '''
 
     drawer=Drawer(image)
+
+    plt_org=image.getpalette()
+    plt=[ (plt_org[(n*3)], plt_org[(n*3)+1], plt_org[(n*3)+2]) for n in range(len(plt_org)//3) ]
+    plt_optz=tuple(sorted(set(plt)))
+
     n=0
-    while n < len(bytes):
-        if (bytes[n]):
+    while n < len(obj_bytes):
+        if (obj_bytes[n]):
             # one byte, isolated colored pixel
             length=1
-            color=bytes[n]
+            # color=obj_bytes[n]
+            color=paletteRemap(plt, plt_optz, obj_bytes[n])
             drawer.drawLine(color, length)
             # shift byte position
             n+=1
         else:
             # define default color
-            color=255
+            # color=0
+            color=paletteRemap(plt, plt_optz, 0)
             # keep witness and go to next byte
-            witness=bytes[n+1]
+            witness=obj_bytes[n+1]
             n+=1
             if witness == 0:
                 # new line encountered
@@ -257,25 +354,27 @@ def readObject(image, bytes):
             elif witness < 128:
                 # three bytes, default color with longer sequence
                 # 00000000 01LLLLLL LLLLLLLL
-                length=((witness-64)<<8)+bytes[n+1]
+                length=((witness-64)<<8)+obj_bytes[n+1]
                 drawer.drawLine(color, length)
                 n+=2
             elif witness < 192:
                 # three bytes, with define color shorter sequence
                 # 000000 10LLLLLL CCCCCCCC
-                color=bytes[n+1]
+                # color=obj_bytes[n+1]
+                color=paletteRemap(plt, plt_optz, obj_bytes[n+1])
                 length=witness-128
                 drawer.drawLine(color, length)
                 n+=2
             else:
                 # four bytes, with define color longer sequence
                 # 00000000 11LLLLLL LLLLLLLL CCCCCCCC
-                color=bytes[n+2]
-                length=((witness-192)<<8)+bytes[n+1]
+                # color=bytes[n+2]
+                color=paletteRemap(plt, plt_optz, obj_bytes[n+2])
+                length=((witness-192)<<8)+obj_bytes[n+1]
                 drawer.drawLine(color, length)
                 n+=3
 
-def readWDS(bytes):
+def readWDS(wds_bytes):
     ''' Window Definition Object
     1 byte,  Number of windows: Number of windows defined in this segment
     1 byte,  Window ID: ID of this window
@@ -285,15 +384,15 @@ def readWDS(bytes):
     2 bytes, Window height: Height of the window
     '''
     return wds(
-        int.from_bytes(bytes[0:1]),
-        int.from_bytes(bytes[1:2]),
-        int.from_bytes(bytes[2:4]),
-        int.from_bytes(bytes[4:6]),
-        int.from_bytes(bytes[6:8]),
-        int.from_bytes(bytes[8:10])
+        int.from_bytes(wds_bytes[0:1]),
+        int.from_bytes(wds_bytes[1:2]),
+        int.from_bytes(wds_bytes[2:4]),
+        int.from_bytes(wds_bytes[4:6]),
+        int.from_bytes(wds_bytes[6:8]),
+        int.from_bytes(wds_bytes[8:10])
     )
 
-def readCO(bytes):
+def readCO(co_bytes):
     ''' Composition Object
     0 2 bytes, object ID: ID of the ODS segment that defines the image to be shown
     2 1 byte,  window ID: Id of the WDS segment to which the image is allocated in the PCS, maximum 2 images.
@@ -306,23 +405,23 @@ def readCO(bytes):
     14 2 bytes, object cropping height position: height of the cropped object in the screen. Only used when the Obj Crop Flag: 0x40
     '''
     cropping=(0, 0, 0, 0)
-    if ( bytes[3:4] == b'\x40' ):
+    if ( co_bytes[3:4] == b'\x40' ):
         cropping=(
-            int.from_bytes(bytes[8:10]),  # obj. crop. pos. x
-            int.from_bytes(bytes[10:12]),  # obj. crop. pos. y
-            int.from_bytes(bytes[12:14]),  # obj. crop. width
-            int.from_bytes(bytes[14:16]),  # obj. crop. height
+            int.from_bytes(co_bytes[8:10]),  # obj. crop. pos. x
+            int.from_bytes(co_bytes[10:12]),  # obj. crop. pos. y
+            int.from_bytes(co_bytes[12:14]),  # obj. crop. width
+            int.from_bytes(co_bytes[14:16]),  # obj. crop. height
         )
     return co(
-        int.from_bytes(bytes[0:2]), # object ID
-        bytes[3], # window ID
-        PCS['objectCroppedFlag'][bytes[3:4]], # obj. crop. flag
-        int.from_bytes(bytes[4:6]), # obj. pos. x
-        int.from_bytes(bytes[6:8]), # obj. pos. y
+        int.from_bytes(co_bytes[0:2]), # object ID
+        co_bytes[3], # window ID
+        PCS['objectCroppedFlag'][co_bytes[3:4]], # obj. crop. flag
+        int.from_bytes(co_bytes[4:6]), # obj. pos. x
+        int.from_bytes(co_bytes[6:8]), # obj. pos. y
         *cropping
     )
 
-def readPCS(bytes, pts):
+def readPCS(pcs_bytes, pts):
     ''' Presentation Composition Segment
     0  2 bytes, video width
     2  2 bytes, video height
@@ -333,23 +432,23 @@ def readPCS(bytes, pts):
     9  1 bytes, palette ID
     10 1 bytes, number of composition objects
     '''
-    n_of_co=bytes[10]
+    n_of_co=pcs_bytes[10]
     composition_obj=(0, 0, 0, 0, 0, 0, 0, 0, 0)
-    if n_of_co: composition_obj=readCO(bytes[11:])
+    if n_of_co: composition_obj=readCO(pcs_bytes[11:])
     return pcs(
-        int.from_bytes(bytes[:2]), # video width
-        int.from_bytes(bytes[2:4]), # video height
-        bytes[4], # frame rate
-        int.from_bytes(bytes[5:7]), # composition number
-        PCS['compositionState'][bytes[7:8]], # composition state
+        int.from_bytes(pcs_bytes[:2]), # video width
+        int.from_bytes(pcs_bytes[2:4]), # video height
+        pcs_bytes[4], # frame rate
+        int.from_bytes(pcs_bytes[5:7]), # composition number
+        PCS['compositionState'][pcs_bytes[7:8]], # composition state
         ms2time(pts),
-        bool(bytes[8]), # palette update flag
-        bytes[9], # palette ID
+        bool(pcs_bytes[8]), # palette update flag
+        pcs_bytes[9], # palette ID
         n_of_co, # number of composition objects
         composition_obj
     )
 
-def readPDS(bytes):
+def readPDS(pds_bytes):
     ''' Palette Definition Segment
     1 byte, ID: ID of the palette
     1 byte, Version Number: Version of this palette within the Epoch
@@ -365,29 +464,29 @@ def readPDS(bytes):
     palette_alpha=[(0, 0, 0, 0)]*256
     # define default rgb colors
     palette=[(redChannel(0, 0), greenChannel(0, 0, 0), blueChannel(0, 0))]*256
-    id=bytes[0]
-    version=bytes[1]
-    bytes=bytes[2:]
+    id=pds_bytes[0]
+    version=pds_bytes[1]
+    pds_bytes=pds_bytes[2:]
     n=0
-    while (n < len(bytes)):
-        entry=bytes[n]
+    while (n < len(pds_bytes)):
+        entry=pds_bytes[n]
         # YCrCb to RGB conversion
-        y,cr,cb,a=bytes[n+1], bytes[n+2], bytes[n+3], bytes[n+4]
+        y,cr,cb,a=pds_bytes[n+1], pds_bytes[n+2], pds_bytes[n+3], pds_bytes[n+4]
         palette[entry]=(redChannel(y, cr), greenChannel(y, cb, cr), blueChannel(y, cb))
         n+=5
     return pds(id, version, list(itertools.chain.from_iterable(palette)))
 
-def readODS(bytes):
+def readODS(ods_bytes):
     ''' Object Definition Segment
     '''
     return ods(
-        int.from_bytes(bytes[:2]),
-        int.from_bytes(bytes[2:3]),
-        bytes[3:4],
-        int.from_bytes(bytes[4:7]),
-        int.from_bytes(bytes[7:9]),
-        int.from_bytes(bytes[9:11]),
-        bytes[11:]
+        int.from_bytes(ods_bytes[:2]),
+        int.from_bytes(ods_bytes[2:3]),
+        ods_bytes[3:4],
+        int.from_bytes(ods_bytes[4:7]),
+        int.from_bytes(ods_bytes[7:9]),
+        int.from_bytes(ods_bytes[9:11]),
+        ods_bytes[11:]
     )
 
 # check supfile header, search PG 0x50,0x47
@@ -436,13 +535,13 @@ while True:
     |PCS|WDS|END|
     '''
     # Read PGS header
-    bytes=supfile.read(13)
-    magicNumber=bytes[:2]
+    pgs_bytes=supfile.read(13)
+    magicNumber=pgs_bytes[:2]
     if not magicNumber: break
-    pts=int.from_bytes(bytes[2:6])/90
-    dts=int.from_bytes(bytes[6:10])/90
-    segtype=bytes[10:11]
-    size=int.from_bytes(bytes[11:13])
+    pts=int.from_bytes(pgs_bytes[2:6])/90
+    dts=int.from_bytes(pgs_bytes[6:10])/90
+    segtype=pgs_bytes[10:11]
+    size=int.from_bytes(pgs_bytes[11:13])
     subData=supfile.read(size)
     # handle segment by its type
     if ( segtype == b'\x14' ):
@@ -473,8 +572,8 @@ while True:
         # END
         # PCS with empty object is an end of the current subtitle
         if currentDS['pcs'].nof_obj != 0:
-            cue, image_filepath = pack.makeImage(currentDS)
-            print(f'{image_filepath} saved.', end='\r')
+            cue, image_filepath = pack.makeSubtitleImage(currentDS)
+            # print(f'{image_filepath} saved.', end='\r')
             current_webvtt_cue.append(cue)
             continue
         # end of the current subtitle, so write it
@@ -490,6 +589,8 @@ webvtt_file.close()
 files=[webvtt_path]
 print(f'{webvtt_path} created.')
 pack.endPack()
+# pack.makePack()
+
 if not pack.count:
     print('Unable to retrieve subtitle from supfile, abort.')
     sys.exit(1)
@@ -499,15 +600,37 @@ rows_prefix='rows-'
 nof_pack=pack.count//rows
 
 # pack rows
-print('pack rows…', end='')
-cmd = 'bash -c "convert {0}{{%{1}..%{2}}}.{3} -append {4}%0{5}d.{6}"'.format(
-    os.path.join(pack.tmpd.name, pack.subtitle_prefix),
-    pack.subtitle_int_width, pack.subtitle_int_width,
-    pack_extension,
-    os.path.join(pack.tmpd.name, rows_prefix),
-    len(str(nof_pack)),
-    image_extension
-)
+print('pack rows…')
+# cmd = 'bash -c "convert {0}{{%{1}..%{2}}}.{3} -append %s"'.format(
+#     os.path.join(pack.tmpd.name, pack.subtitle_prefix),
+#     pack.subtitle_format, pack.subtitle_format,
+#     pack_extension,
+#     # os.path.join(pack.tmpd.name, rows_prefix),
+#     # len(str(nof_pack)),
+#     # image_extension
+# )
+for one_pack in pack.packs:
+    for column in one_pack.columns:
+        output_filename=os.path.join(pack.tmpd.name, column.columnFilename)
+        if ( column.end-column.begin == 1 ):
+            output=wimage(filename=pack.subtitleFilename(column.begin))
+            # TODO: color filter option ?
+            output.transparent_color(color='#008700', alpha=0, fuzz=0)
+            output.save(filename=output_filename)
+            continue
+
+        output=wimage()
+        image1=wimage(filename=pack.subtitleFilename(column.begin))
+        for n in range(column.begin+1, column.end+1):
+            image2=wimage(filename=pack.subtitleFilename(n))
+            w=max(image1.width, image2.width)
+            h=image1.height + image2.height
+            output.blank(width=w, height=h)
+            output.composite(image1)
+            output.composite(image2, 0, image1.height)
+            output.save(filename=output_filename)
+sys.exit(3)
+
 for n in range(0, nof_pack):
     os.system(cmd % (n*rows, ((n+1)*rows)-1, n))
     print('.', end=''),
