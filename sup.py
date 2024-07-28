@@ -8,8 +8,9 @@
 import sys, os, itertools, argparse, datetime, math, tempfile
 from PIL import Image, ImageDraw
 from collections import namedtuple
-from hashlib import md5
 from wand.image import Image as wimage
+from wand.drawing import Drawing as wdrawing
+from wand.color import Color as wcolor
 
 cliParser=argparse.ArgumentParser(
     prog=os.path.basename(sys.argv[0]),
@@ -76,23 +77,30 @@ packColumnDescription=namedtuple('PackOfSubtitleRows', 'columnFilename begin end
 LINE_CLEAR='\x1b[2K'
 
 class Drawer:
-    def __init__(self, image):
-        self.image=image
+    def __init__(self, image, palette):
+        self.image, self.palette = image, palette
         self.x=0
         self.y=0
-        self.draw=ImageDraw.Draw(self.image)
+        self.draw=wdrawing()
+        self.draw.stroke_width=1
 
-    def drawLine(self, color, length):
-        # drawing line
-        self.draw.line(
-            [(self.x, self.y), (self.x+length, self.y)],
-            fill=(color), width=1, joint=None
-        )
-        self.x+=length
+    def drawLine(self, colorIndex, length):
+        # # drawing line
+        self.draw.stroke_color=self.index2rgb(colorIndex)
+        # self.draw.line((self.x, self.y), (self.x+length, self.y))
+        # self.x+=length
+        for n in range(length):
+            self.draw.point(self.x, self.y)
+            self.x+=1
 
     def nextLine(self):
         self.x=0
         self.y+=1
+
+    def index2rgb(self, index):
+        index=index*3
+        return wcolor(f'rgb({self.palette[index]:d},{self.palette[index+1]:d},{self.palette[index+2]:d})')
+
 
 class PackImages:
 
@@ -108,9 +116,6 @@ class PackImages:
         self.current_column, self.column_count = [], 0
         self.pack_count=0
         self.tmpd = tempfile.TemporaryDirectory(prefix=f'{cliParser.prog}-', delete=not enable_debug)
-
-        self.image=Image.new('P', (0, 0))
-        self.image_filepath='/tmp/machin.png'
 
         self.startPack()
 
@@ -135,10 +140,8 @@ class PackImages:
             Create a corresponding packDescription, append it to self.packs list.
             Reseting current pack
         '''
-        # self.current_pack.append(self.column_count)
         self.endColumn()
         self.packs.append(packDescription(*self.current_pack))
-        # self.current_pack=[]
         self.startPack()
 
     def startColumn(self):
@@ -195,56 +198,17 @@ class PackImages:
         '''
         n=0
         while n < ds['pcs'].nof_obj:
-            win_size=(ds['wpo_list'][n].ods.width, ds['wpo_list'][n].ods.height)
+            w,h=(ds['wpo_list'][n].ods.width, ds['wpo_list'][n].ods.height)
             obj_bytes=ds['wpo_list'][n].ods.obj_data
             palette=ds['wpo_list'][n].pds.palette
-            subtitle_image = Image.new('P', win_size, 0)
-            subtitle_image.putpalette(palette)
-            readObject(subtitle_image, obj_bytes)
-            subtitle_image.putpalette(optimizePalette(palette))
+            subtitle_image=wimage(width=w, height=h, background='transparent')
+            subtitle_image.type='palette'
+            readObject(subtitle_image, obj_bytes, palette)
             subtitle_image_filename=self.subtitleFilename(ds['pcs'].comp_n//2)
-            subtitle_image.save(subtitle_image_filename)
+            subtitle_image.save(filename=subtitle_image_filename)
             subtitle_image.close()
             n+=1
-        return (pack.getCue(win_size[0], win_size[1]), subtitle_image_filename)
-
-    def appendImageRow(self, image, palette):
-        w=max(self.image.size[0], image.size[0])
-        h=self.image.size[1] + image.size[1]
-        new=Image.new('P', (w, h))
-        new.paste(self.image)
-        new.paste(image, (0, self.image.size[1]))
-        # self.image.close()
-        self.image=new
-        # new.close()
-        self.image.save(self.image_filepath)
-
-    def appendImageColumn(self, image, palette):
-        w=self.image.size[0] + image.size[0]
-        h=max(self.image.size[1] + image.size[1])
-        new=Image.new('P', (w, h))
-        new.paste(self.image)
-        new.paste(image, (0, self.image.size[1]))
-        # self.image.close()
-        self.image=new
-        # new.close()
-        self.image.save(self.image_filepath)
-
-    def appendImage(self, img1, img2):
-        image1=Image.open(img1)
-        image2=Image.open(img2)
-        w=max(image1.size[0], image2.size[0])
-        h=image1.size[1]+image2.size[1]
-        new=Image.new('P', (w,h))
-        new.paste(image1)
-        new.paste(image2, (0,image1.size[1]))
-        return new
-
-    def makePack(self):
-        print(self.packs)
-        for pack in self.packs:
-            for column in pack.columns:
-                pass
+        return (pack.getCue(w, h), subtitle_image_filename)
 
 def ms2time(milliseconds):
     ''' Convert milliseconds into string time like: HH:MM:SS.mm'''
@@ -307,7 +271,7 @@ def optimizePalette(palette):
 def paletteRemap(reference, new, color_index):
     return new.index(reference[color_index])
 
-def readObject(image, obj_bytes):
+def readObject(image, obj_bytes, palette):
     '''
     C: color, L: length, 0: default color
     1 byte : CCCCCCCC
@@ -318,26 +282,20 @@ def readObject(image, obj_bytes):
     2 bytes: 00000000 00000000 end of line
     '''
 
-    drawer=Drawer(image)
-
-    plt_org=image.getpalette()
-    plt=[ (plt_org[(n*3)], plt_org[(n*3)+1], plt_org[(n*3)+2]) for n in range(len(plt_org)//3) ]
-    plt_optz=tuple(sorted(set(plt)))
+    drawer=Drawer(image, palette)
 
     n=0
     while n < len(obj_bytes):
         if (obj_bytes[n]):
             # one byte, isolated colored pixel
             length=1
-            # color=obj_bytes[n]
-            color=paletteRemap(plt, plt_optz, obj_bytes[n])
+            color=obj_bytes[n]
             drawer.drawLine(color, length)
             # shift byte position
             n+=1
         else:
             # define default color
-            # color=0
-            color=paletteRemap(plt, plt_optz, 0)
+            color=0
             # keep witness and go to next byte
             witness=obj_bytes[n+1]
             n+=1
@@ -360,19 +318,18 @@ def readObject(image, obj_bytes):
             elif witness < 192:
                 # three bytes, with define color shorter sequence
                 # 000000 10LLLLLL CCCCCCCC
-                # color=obj_bytes[n+1]
-                color=paletteRemap(plt, plt_optz, obj_bytes[n+1])
+                color=obj_bytes[n+1]
                 length=witness-128
                 drawer.drawLine(color, length)
                 n+=2
             else:
                 # four bytes, with define color longer sequence
                 # 00000000 11LLLLLL LLLLLLLL CCCCCCCC
-                # color=bytes[n+2]
-                color=paletteRemap(plt, plt_optz, obj_bytes[n+2])
+                color=obj_bytes[n+2]
                 length=((witness-192)<<8)+obj_bytes[n+1]
                 drawer.drawLine(color, length)
                 n+=3
+    drawer.draw(image)
 
 def readWDS(wds_bytes):
     ''' Window Definition Object
@@ -573,7 +530,7 @@ while True:
         # PCS with empty object is an end of the current subtitle
         if currentDS['pcs'].nof_obj != 0:
             cue, image_filepath = pack.makeSubtitleImage(currentDS)
-            # print(f'{image_filepath} saved.', end='\r')
+            print(f'{image_filepath} saved.', end='\r')
             current_webvtt_cue.append(cue)
             continue
         # end of the current subtitle, so write it
@@ -589,84 +546,32 @@ webvtt_file.close()
 files=[webvtt_path]
 print(f'{webvtt_path} created.')
 pack.endPack()
-# pack.makePack()
 
 if not pack.count:
     print('Unable to retrieve subtitle from supfile, abort.')
     sys.exit(1)
 
 # image packing
-rows_prefix='rows-'
-nof_pack=pack.count//rows
-
-# pack rows
-print('pack rows…')
-# cmd = 'bash -c "convert {0}{{%{1}..%{2}}}.{3} -append %s"'.format(
-#     os.path.join(pack.tmpd.name, pack.subtitle_prefix),
-#     pack.subtitle_format, pack.subtitle_format,
-#     pack_extension,
-#     # os.path.join(pack.tmpd.name, rows_prefix),
-#     # len(str(nof_pack)),
-#     # image_extension
-# )
 for one_pack in pack.packs:
     for column in one_pack.columns:
-        output_filename=os.path.join(pack.tmpd.name, column.columnFilename)
-        if ( column.end-column.begin == 1 ):
-            output=wimage(filename=pack.subtitleFilename(column.begin))
-            # TODO: color filter option ?
-            output.transparent_color(color='#008700', alpha=0, fuzz=0)
-            output.save(filename=output_filename)
-            continue
-
-        output=wimage()
+        new_column=wimage()
         image1=wimage(filename=pack.subtitleFilename(column.begin))
-        for n in range(column.begin+1, column.end+1):
-            image2=wimage(filename=pack.subtitleFilename(n))
-            w=max(image1.width, image2.width)
-            h=image1.height + image2.height
-            output.blank(width=w, height=h)
-            output.composite(image1)
-            output.composite(image2, 0, image1.height)
-            output.save(filename=output_filename)
-sys.exit(3)
-
-for n in range(0, nof_pack):
-    os.system(cmd % (n*rows, ((n+1)*rows)-1, n))
-    print('.', end=''),
-if ( pack.count % rows ) > 0:
-    os.system(cmd % (nof_pack*rows, pack.count-1, nof_pack))
-    # append one pack to counter
-    nof_pack += 1
-    print('.', end=''),
-print()
-
-# final pack:rows*columns
-print('pack final image and add transparency…', end='')
-nof_image=nof_pack
-nof_pack=nof_image//columns
-cmd = 'bash -c "convert {0}{{%0{1}d..%0{2}d}}.{3} +append {4}%0{5}d.{6}"'.format(
-    os.path.join(pack.tmpd.name, rows_prefix),
-    len(str(nof_image)), len(str(nof_image)),
-    image_extension,
-    os.path.join(pack.tmpd.name, pack_prefix),
-    len(str(nof_pack)),
-    image_extension
-)
-filter='bash -c "mogrify -transparent \'rgb(0, 135, 0)\' -transparent \'rgb(255, 255, 255)\' {}"'
-for n in range(0, nof_pack):
-    os.system(cmd % ( n*columns, ((n+1)*columns)-1, n))
-    final_filename='{}{}.{}'.format(os.path.join(pack.tmpd.name, pack_prefix), n, pack_extension)
-    os.system(filter.format(final_filename))
-    files.append(final_filename)
-    print('.', end=''),
-if ( nof_image % columns ) > 0:
-    os.system(cmd % ( nof_pack*columns, nof_image-1, nof_pack))
-    final_filename='{}{}.{}'.format(os.path.join(pack.tmpd.name, pack_prefix), nof_pack, pack_extension)
-    os.system(filter.format(final_filename))
-    files.append(final_filename)
-    print('.', end=''),
-print()
+        for n in range(column.begin, column.end+1):
+            row=wimage(filename=pack.subtitleFilename(n))
+            new_column.sequence.append(row)
+        # stacked vertically
+        new_column.concat(stacked=True)
+        new_column.save(filename=os.path.join(pack.tmpd.name, column.columnFilename))
+    pack_image=wimage()
+    for n in range(len(one_pack.columns)):
+        column_image=wimage(filename=os.path.join(pack.tmpd.name, one_pack.columns[n].columnFilename))
+        pack_image.sequence.append(column_image)
+    # stacked horizontally
+    pack_image.concat()
+    # TODO: color filter option ?
+    pack_image.transparent_color(color='#008700', alpha=0, fuzz=0)
+    pack_image.transparent_color(color='#ffffff', alpha=0, fuzz=0)
+    pack_image.save(filename=one_pack.packFilename)
 
 # TODO: check if files already exists
 for f in files:
