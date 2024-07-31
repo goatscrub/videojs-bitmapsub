@@ -8,9 +8,9 @@
 import sys, os, itertools, argparse, datetime, math, tempfile
 from PIL import Image, ImageDraw
 from collections import namedtuple
-from wand.image import Image as wimage
-from wand.drawing import Drawing as wdrawing
-from wand.color import Color as wcolor
+# from wand.image import Image as wimage
+# from wand.drawing import Drawing as wdrawing
+# from wand.color import Color as wcolor
 
 cliParser=argparse.ArgumentParser(
     prog=os.path.basename(sys.argv[0]),
@@ -77,30 +77,22 @@ packColumnDescription=namedtuple('PackOfSubtitleRows', 'columnFilename begin end
 LINE_CLEAR='\x1b[2K'
 
 class Drawer:
-    def __init__(self, image, palette):
-        self.image, self.palette = image, palette
-        self.x=0
-        self.y=0
-        self.draw=wdrawing()
-        self.draw.stroke_width=1
+    def __init__(self, image):
+        self.image= image
+        self.x, self.y = 0, 0
+        self.draw=ImageDraw.Draw(self.image)
 
     def drawLine(self, colorIndex, length):
-        # # drawing line
-        self.draw.stroke_color=self.index2rgb(colorIndex)
-        # self.draw.line((self.x, self.y), (self.x+length, self.y))
-        # self.x+=length
-        for n in range(length):
-            self.draw.point(self.x, self.y)
-            self.x+=1
+        # drawing line
+        self.draw.line(
+            [(self.x, self.y), (self.x+length, self.y)],
+            fill=(colorIndex), width=1, joint=None
+        )
+        self.x+=length
 
     def nextLine(self):
         self.x=0
         self.y+=1
-
-    def index2rgb(self, index):
-        index=index*3
-        return wcolor(f'rgb({self.palette[index]:d},{self.palette[index+1]:d},{self.palette[index+2]:d})')
-
 
 class PackImages:
 
@@ -118,6 +110,9 @@ class PackImages:
         self.tmpd = tempfile.TemporaryDirectory(prefix=f'{cliParser.prog}-', delete=not enable_debug)
 
         self.startPack()
+
+    def absolutePath(self, filename=''):
+        return os.path.join(self.tmpd.name, filename)
 
     def packFilename(self):
         # return string representing one bitmap subtitle filename against current packing number
@@ -201,11 +196,13 @@ class PackImages:
             w,h=(ds['wpo_list'][n].ods.width, ds['wpo_list'][n].ods.height)
             obj_bytes=ds['wpo_list'][n].ods.obj_data
             palette=ds['wpo_list'][n].pds.palette
-            subtitle_image=wimage(width=w, height=h, background='transparent')
-            subtitle_image.type='palette'
-            readObject(subtitle_image, obj_bytes, palette)
+            subtitle_image=Image.new('P', (w, h), 0)
+            subtitle_image.putpalette(palette)
+            readObject(subtitle_image, obj_bytes)
             subtitle_image_filename=self.subtitleFilename(ds['pcs'].comp_n//2)
-            subtitle_image.save(filename=subtitle_image_filename)
+            subtitle_image.save(subtitle_image_filename)
+            # save transparency color index
+            subtitle_image.info['transparency']=0
             subtitle_image.close()
             n+=1
         return (pack.getCue(w, h), subtitle_image_filename)
@@ -264,14 +261,43 @@ def blueChannel(y, cb):
     # blue channel from y and cb channels
     return validateRange(int(y+1.772*(cb-128)))
 
+def tupleizePalette(palette):
+    return [ (palette[(n*3)], palette[(n*3)+1], palette[(n*3)+2]) for n in range(len(palette)//3) ]
+
 def optimizePalette(palette):
-    optz=tuple(sorted(set([ (palette[(n*3)], palette[(n*3)+1], palette[(n*3)+2]) for n in range(len(palette)//3) ])))
-    return [ i for t in optz for i in t ]
+    return tuple(sorted(set(tupleizePalette(palette))))
 
-def paletteRemap(reference, new, color_index):
-    return new.index(reference[color_index])
+def flattenPalette(palette):
+    return [ element for colorTuple in palette for element in colorTuple ]
 
-def readObject(image, obj_bytes, palette):
+def stackImages(pil_image1, pil_image2, horizontally=False):
+    '''stack pil_image1 and pil_image2 vertically'''
+    first, second = pil_image1, pil_image2
+    if horizontally:
+        width=first.size[0] + second.size[0]
+        height=max(first.size[1], second.size[1])
+        position=(first.size[0], 0)
+    else:
+        width=max(first.size[0], second.size[0])
+        height=first.size[1] + second.size[1]
+        position=(0, first.size[1])
+
+    stack=Image.new('P', (width, height), 0)
+    stack.putpalette(mergePalette(pil_image1.getpalette(), pil_image2.getpalette()))
+    stack.paste(first)
+    stack.paste(second, position)
+    pil_image1.close()
+    pil_image2.close()
+    return stack
+
+def remap(reference, new, colorIndex):
+    return new.index(reference[colorIndex])
+
+def mergePalette(first, second):
+    first.extend(second)
+    return flattenPalette(optimizePalette(first))
+
+def readObject(image, obj_bytes):
     '''
     C: color, L: length, 0: default color
     1 byte : CCCCCCCC
@@ -282,7 +308,10 @@ def readObject(image, obj_bytes, palette):
     2 bytes: 00000000 00000000 end of line
     '''
 
-    drawer=Drawer(image, palette)
+    drawer=Drawer(image)
+    palette=image.getpalette()
+    palette_tupleized=tupleizePalette(palette)
+    optimized_palette=optimizePalette(palette)
 
     n=0
     while n < len(obj_bytes):
@@ -290,7 +319,6 @@ def readObject(image, obj_bytes, palette):
             # one byte, isolated colored pixel
             length=1
             color=obj_bytes[n]
-            drawer.drawLine(color, length)
             # shift byte position
             n+=1
         else:
@@ -303,33 +331,38 @@ def readObject(image, obj_bytes, palette):
                 # new line encountered
                 drawer.nextLine()
                 n+=1
+                # skip drawing line
+                continue
             elif witness < 64:
                 # two bytes, default color with shorter sequence
                 # 000000 00LLLLLL
                 length=witness
-                drawer.drawLine(color, length)
                 n+=1
             elif witness < 128:
                 # three bytes, default color with longer sequence
                 # 00000000 01LLLLLL LLLLLLLL
                 length=((witness-64)<<8)+obj_bytes[n+1]
-                drawer.drawLine(color, length)
                 n+=2
             elif witness < 192:
                 # three bytes, with define color shorter sequence
                 # 000000 10LLLLLL CCCCCCCC
                 color=obj_bytes[n+1]
                 length=witness-128
-                drawer.drawLine(color, length)
                 n+=2
             else:
                 # four bytes, with define color longer sequence
                 # 00000000 11LLLLLL LLLLLLLL CCCCCCCC
                 color=obj_bytes[n+2]
                 length=((witness-192)<<8)+obj_bytes[n+1]
-                drawer.drawLine(color, length)
                 n+=3
-    drawer.draw(image)
+        # remap color against optimized palette
+        newColorIndex=remap(palette_tupleized, optimized_palette, color)
+        # draw line against color and length values
+        drawer.drawLine(newColorIndex, length)
+    # write optimized palette into image and add transparency
+    # with color at index 0 against color palette
+    image.putpalette(flattenPalette(optimized_palette))
+    # image.info['transparency']=0
 
 def readWDS(wds_bytes):
     ''' Window Definition Object
@@ -414,6 +447,7 @@ def readPDS(pds_bytes):
     1 byte, Luminance (Y): Luminance (Y value)
     1 byte, Color Difference Red (Cr): Color Difference Red (Cr value)
     1 byte, Color Difference Blue (Cb): Color Difference Blue (Cb value)
+    TODO: built-in alpha chanel
     1 byte, Transparency (Alpha): Transparency (Alpha value)
     '''
 
@@ -476,7 +510,7 @@ webvtt_file.write('file generated with {0} {1}\n'.format(
     cliParser.prog,
     str(datetime.datetime.now()).split('.')[0]
 ))
-webvtt_file.write('cue format file-bitmap.png width:height:driftX:driftY\n')
+webvtt_file.write('cue content format:\nrelative bitmap pathname width:height:driftX:driftY\n')
 while True:
     '''
     PGS: Presentation Graphic Stream
@@ -553,26 +587,34 @@ if not pack.count:
 
 # image packing
 for one_pack in pack.packs:
-    for column in one_pack.columns:
-        new_column=wimage()
-        image1=wimage(filename=pack.subtitleFilename(column.begin))
-        for n in range(column.begin, column.end+1):
-            row=wimage(filename=pack.subtitleFilename(n))
-            new_column.sequence.append(row)
-        # stacked vertically
-        new_column.concat(stacked=True)
-        new_column.save(filename=os.path.join(pack.tmpd.name, column.columnFilename))
-    pack_image=wimage()
-    for n in range(len(one_pack.columns)):
-        column_image=wimage(filename=os.path.join(pack.tmpd.name, one_pack.columns[n].columnFilename))
-        pack_image.sequence.append(column_image)
-    # stacked horizontally
-    pack_image.concat()
-    # TODO: color filter option ?
-    pack_image.transparent_color(color='#008700', alpha=0, fuzz=0)
-    pack_image.transparent_color(color='#ffffff', alpha=0, fuzz=0)
-    pack_image.save(filename=one_pack.packFilename)
 
-# TODO: check if files already exists
-for f in files:
-    os.system('mv {} {}'.format(f, cliArgs.targetDirectory))
+    for column in one_pack.columns:
+        # only one image into this column
+        if column.begin == column.end:
+            onlyone=Image.open(pack.subtitleFilename(column.end))
+            onlyone.save(os.path.join(pack.tmpd.name, column.columnFilename))
+            onlyone.close()
+            continue
+
+        concat=Image.open(pack.subtitleFilename(column.begin))
+        for n in range(column.begin+1, column.end+1):
+            second=Image.open(pack.subtitleFilename(n))
+            concat=stackImages(concat, second)
+            second.close()
+        concat.save(os.path.join(pack.tmpd.name, column.columnFilename))
+        concat.close()
+
+    # stacked horizontally (final pack)
+    pack_image=Image.open(os.path.join(pack.tmpd.name, one_pack.columns[0].columnFilename))
+    for n in range(1, len(one_pack.columns)):
+        second=Image.open(os.path.join(pack.tmpd.name, one_pack.columns[n].columnFilename))
+        pack_image=stackImages(pack_image, second, horizontally=True)
+    # TODO: color filter option/parameter ?
+    pack_image.info['transparency']=0
+    pack_filename=pack.absolutePath(one_pack.packFilename)
+    pack_image.save(pack_filename)
+    pack_image.close()
+    files.append(pack_filename)
+
+# TODO: check if target files already exists
+for f in files: os.system('mv {} {}'.format(f, cliArgs.targetDirectory))
