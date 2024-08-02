@@ -1,4 +1,10 @@
 <?php
+//var_dump($_SERVER);
+//exit();
+//if ('//' . $_SERVER['SERVER_NAME'] . ':' . $_SERVER['SERVER_PORT'] != $HTTP_HOST) {
+//    header('Location: http:' . $_SERVER['HTTP_HOST']);
+//    exit();
+//}
 // send 206 code when mp4 extension request
 $uri = $_SERVER['REQUEST_URI'];
 if (preg_match('/\.mp4$/', $uri)) {

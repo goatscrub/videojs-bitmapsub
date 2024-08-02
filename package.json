@@ -15,5 +15,9 @@
     "video.js": "^8.12.0",
     "videojs": "^1.0.0",
     "vite": "^4.3.9"
+  },
+  "dependencies": {
+    "generator-videojs-plugin": "^9.0.0",
+    "yo": "^1.4.2"
   }
 }

@@ -2,15 +2,13 @@
 # -*- coding: UTF8 -*-
 # most information was collected from:
 # https://blog.thescorpius.com/index.php/2017/07/15/presentation-graphic-stream-sup-files-bluray-subtitle-format/
+# most inspired by pgsreader: https://github.com/EzraBC/pgsreader/
 # find a copy into doc sub folder
 # NOTE: 'nof' mean 'number of'
 
 import sys, os, itertools, argparse, datetime, math, tempfile
 from PIL import Image, ImageDraw
 from collections import namedtuple
-# from wand.image import Image as wimage
-# from wand.drawing import Drawing as wdrawing
-# from wand.color import Color as wcolor
 
 cliParser=argparse.ArgumentParser(
     prog=os.path.basename(sys.argv[0]),
@@ -450,13 +448,11 @@ def readPDS(pds_bytes):
     TODO: built-in alpha chanel
     1 byte, Transparency (Alpha): Transparency (Alpha value)
     '''
-
     # build empty palette YCrCb + alpha (black)
     palette_alpha=[(0, 0, 0, 0)]*256
     # define default rgb colors
     palette=[(redChannel(0, 0), greenChannel(0, 0, 0), blueChannel(0, 0))]*256
-    id=pds_bytes[0]
-    version=pds_bytes[1]
+    id, version = pds_bytes[0], pds_bytes[1]
     pds_bytes=pds_bytes[2:]
     n=0
     while (n < len(pds_bytes)):
