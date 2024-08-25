@@ -15,17 +15,16 @@ textarea,
 button {
     font-family: inherit;
 }
-
-main {
-    width: 50%;
-    padding-block: 3em;
-    margin-inline: auto;
-}
 */
+main {
+  width: 50%;
+  padding-block: 3em;
+  margin-inline: auto;
+}
 
 #bitmapsub-container {
   --drift: 0;
-  display: inline-flex;
+  display: none;
   position: absolute;
   padding: 2ch;
   background-color: #0006;
@@ -37,6 +36,11 @@ main {
   border-radius: 3px;
   z-index: 1;
   bottom: var(--drift);
+  pointer-events: none;
+}
+
+.vjs-has-started #bitmapsub-container {
+  display: inline-flex;
 }
 
 .vjs-user-active #bitmapsub-container {

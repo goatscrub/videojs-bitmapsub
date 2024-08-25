@@ -1,6 +1,6 @@
 const VjsComponent = videojs.getComponent('Component')
 
-class BitmapSubComponent extends vjsComponent {
+class BitmapSubComponent extends VjsComponent {
 
     constructor(player, options) {
         super(player)
