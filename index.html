@@ -1,27 +1,37 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
+
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   <title>videojs-bitmapsub Demo</title>
-  <link href="node_modules/video.js/dist/video-js.css" rel="stylesheet">
-  <link href="dist/videojs-bitmapsub.css" rel="stylesheet">
-</head>
-<body>
-  <video id="videojs-bitmapsub-player" class="video-js vjs-default-skin" controls>
-    <source src="//vjs.zencdn.net/v/oceans.mp4" type='video/mp4'>
-    <source src="//vjs.zencdn.net/v/oceans.webm" type='video/webm'>
-  </video>
-  <ul>
-    <li><a href="/test/debug.html">Run unit tests in browser.</a></li>
-    <li><a href="docs/api/">Read generated docs.</a></li>
-  </ul>
+  <link href="node_modules/video.js/dist/video-js.css" rel="stylesheet" />
+  <link href="src/plugin.css" rel="stylesheet" id="css-bitmap-subtitle" />
   <script src="node_modules/video.js/dist/video.js"></script>
-  <script src="dist/videojs-bitmapsub.js"></script>
-  <script>
-    (function(window, videojs) {
-      var examplePlayer = window.examplePlayer = videojs('videojs-bitmapsub-player');
-      var bitmapsub = window.bitmapsub = examplePlayer.bitmapsub();
-    }(window, window.videojs));
-  </script>
+  <script src="src/plugin.js"></script>
+</head>
+
+<body>
+  <main>
+    <video id="sample" class="video-js vjs-default-skin" controls>
+      <source src="/tmp/darkwaters.mp4" type="video/mp4" />
+      <track default src="/tmp/darkwaters.eng.vtt" kind="metadata" label="bitmap:1920:english" language="en" />
+      <track src="/tmp/darkwaters.fre.vtt" kind="metadata" label="bitmap:1920:français" language="fre" />
+      <track src="/tmp/fake.vtt" kind="subtitles" label="fake en" language="en" />
+      <track src="/tmp/fake.vtt" kind="metadata" label="not bitmap subtitle" language="faulty" />
+    </video>
+    <script>
+      const vjsOptions = {
+        fluid: true,
+        controls: true,
+        controlBar: {pictureInPictureToggle: false},
+        muted: true
+        // autoplay: true,
+      };
+      const player = videojs('sample', vjsOptions);
+      player.bitmapSubtitle()
+      window.player = player
+    </script>
+  </main>
 </body>
+
 </html>

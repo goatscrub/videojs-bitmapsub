@@ -1,11 +1,14 @@
 {
   "name": "videojs-bitmapsub",
   "author": "goatscrub Ludovic Mabilat",
-  "version": "0.0.1",
+  "version": "0.8.2",
   "description": "Play bitmap type subtitle into videojs",
   "license": "MIT",
   "private": true,
-  "main": "dist/videojs-bitmapsub.cjs.js",
+  "main": "src/plugin.js",
+  "browser": "dist/videojs-bitmapsub.js",
+  "module": "dist/videojs-bitmapsub.es.js",
+  "type": "module",
   "scripts": {
     "build": "npm-run-all -s clean -p build:*",
     "build-prod": "cross-env-shell NO_TEST_BUNDLE=1 'npm run build'",
@@ -30,35 +33,36 @@
     "watch:css": "npm run build:css -- -w",
     "watch:js": "npm run build:js -- -w",
     "preview": "vite preview",
-    "prepublishOnly": "npm-run-all build-prod && vjsverify --verbose --skip-es-check"
+    "prepublishOnly": "npm-run-all build-prod && vjsverify --verbose --skip-es-check",
+    "bsproxy":"domain=$(basename ${VSCODE_WSFolder});browser-sync start -c ~/workflow/common/browser-sync.config.js --listen ${domain}.test -p ${domain}.test"
   },
   "devDependencies": {
     "@babel/runtime": "^7.14.0",
     "@videojs/generator-helpers": "~3.0.0",
+    "eslint-config-videojs": "^6.1.0",
     "jsdoc": "~3.6.7",
     "karma": "^6.3.2",
     "postcss": "^8.3.0",
     "postcss-cli": "^8.3.1",
     "rollup": "^2.50.3",
     "sinon": "^9.1.0",
-    "video.js": "^8.12.0",
-    "videojs": "^1.0.0",
+    "video.js": "^8.17.3",
+    "videojs-ass-es6": "^0.0.4",
+    "videojs-auto-caption": "^0.1.0",
     "videojs-generate-karma-config": "~8.0.0",
     "videojs-generate-postcss-config": "~3.0.0",
     "videojs-generate-rollup-config": "~7.0.1",
     "videojs-generator-verify": "~4.0.0",
     "videojs-languages": "^2.0.0",
-    "videojs-standard": "^9.0.0",
+    "videojs-standard": "^9.1.0",
     "vite": "^4.3.9"
   },
   "dependencies": {
     "generator-videojs-plugin": "^9.0.0",
     "global": "^4.4.0",
-    "video.js": "^8",
+    "videojs-select-subtitle": "^0.1.1",
     "yo": "^1.4.2"
   },
-  "module": "dist/videojs-bitmapsub.es.js",
-  "browser": "dist/videojs-bitmapsub.js",
   "generator-videojs-plugin": {
     "version": "9.0.0"
   },

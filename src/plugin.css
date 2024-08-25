@@ -1,40 +1,59 @@
-/**
- * css for videojs-bitmapsub
- * With the default plugins for postcss you can
- * - @import files, they will be inlined during build
- * - not worry about browser prefixes, they will be handled
- * - nest selectors. This follows the css specification that is
- *   currently out on some browsers. See https://tabatkins.github.io/specs/css-nesting/
- * - custom properties (aka variables) via the var(--var-name) syntax. See
- *   https://www.w3.org/TR/css-variables-1/
- */
-
-
-/* Note: all vars must be defined here, there are no "local" vars */
-:root {
-  --main-color: red;
-  --base-font-size: 9;
-  --font-size: 7;
+/**,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-.video-js {
+body {
+    font-family: sans-serif;
+}
 
-  &.vjs-bitmapsub {
-    /* This class is added to the video.js element by the plugin by default. */
-    display: block;
+input,
+textarea,
+button {
+    font-family: inherit;
+}
 
-    & .remove-me, & .remove-me-too, &.finally-remove-me {
-      /* examples of postcss syntax, you probably want to remove this */
+main {
+    width: 50%;
+    padding-block: 3em;
+    margin-inline: auto;
+}
+*/
 
-      color: var(--main-color);
+#bitmapsub-container {
+  --drift: 0;
+  display: inline-flex;
+  position: absolute;
+  padding: 2ch;
+  background-color: #0006;
+  left: 50%;
+  translate: -50%;
+  opacity: 0;
+  transition: opacity 0.1s, bottom 0.25s 0.25s;
+  transform-origin: bottom;
+  border-radius: 3px;
+  z-index: 1;
+  bottom: var(--drift);
+}
 
-      /**
-       * Note that you have to use calc and multiply by a value with a unit
-       * prepending the unit like `var(--base-font-size)px` or
-       * `calc(10 * var(--base-font-size)em` will NOT work!
-       */
-      font-size: calc(var(--font-size) * 8 * var(--base-font-size) * 1px);
+.vjs-user-active #bitmapsub-container {
+  bottom: calc(30px + var(--drift))
+}
 
-    }
-  }
+.vjs-user-active.vjs-fullscreen #bitmapsub-container {
+  bottom: var(--drift);
+}
+
+#bitmap-subtitle {
+  display: inline-block;
+  background-repeat: no-repeat;
+  /* filter: invert(100%) sepia(100%) saturate(4000%) hue-rotate(190deg); */
+  /* border: 1px solid crimson; */
+}
+
+.vjs-control-bar {
+  z-index: 100;
 }

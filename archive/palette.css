@@ -1,0 +1,16 @@
+body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1em;
+    font-family: monospace;
+    /* background: repeating-linear-gradient(0deg, crimson, white 1em, crimson 1em, white 2em) */
+    background: gold;
+}
+
+span {
+    display: block;
+    padding: 0.5em;
+    border: 1px solid #8888;
+    border-radius: 2px;
+    line-height: 1;
+}
