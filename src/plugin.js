@@ -18,20 +18,25 @@ const pluginDefaults = {
 
 /** */
 class BitmapMenuButton extends VjsMenuButton {
-
   /**
    * must return a array of menuItem
    * returns: menuItem[]
    */
   createItems() {
-    return [{label: 'machin'}, {label: 'chose'}].map(e => new VjsMenuItem(this.player_, e));
-    // return this.options_;
+    if (this.myitems) {
+      return this.myitems;
+    }
+    const {bitmapTracks = []} = this.options_;
+
+    if (bitmapTracks) {
+      return bitmapTracks;
+    }
   }
 }
 /**
  * bitmap subtitle container component
 */
-class BitmapSubComponent extends VjsComponent {
+class BitmapSubContainer extends VjsComponent {
 
   /** */
   createEl() {
@@ -44,19 +49,37 @@ class BitmapSubComponent extends VjsComponent {
 }
 
 /**
- * Plugain Plugin
+ * TODO: passthrough subtitle
+ * TODO: don't display subtitle if player won't play
+ * Create a Bitmapsub plugin instance.
+ *
+ * @param  {Player} player
+ *         A Video.js Player instance.
+ *
+ * @param  {Object} [options]
+ *         An optional options object.
+ *
+ *         While not a core part of the Video.js plugin architecture, a
+ *         second argument of options is a convenient way to accept inputs
+ *         from your plugin's caller.
  */
 class BitmapSubtitle extends VjsPlugin {
   /** */
   constructor(player, options) {
-    super(player);
+    super(player, options);
     this.player = player;
-    this.options = pluginDefaults;
+    this.options = videojs.obj.merge(pluginDefaults, options);
+    // handle only bitmap subtitle tracks
+    this.tracks = [];
+    this.currentSubtitle = {listener: false};
+    // instantiate Bitmap Subtitle Component
+    this.bmpSubContainer = new BitmapSubContainer(this.player, this.options);
+    this.player.addChild(this.bmpSubContainer);
     this.player.ready(e => {
       this.updateMenu();
+      this.player.currentTime(60 * 53);
+      this.bordel();
     });
-    // instantiate Bitmap Subtitle Component
-    this.bmpComponent = new BitmapSubComponent(this.player, this.options);
     // off subtitle button
     // this.offSubtitle = this.player.controlBar.subsCapsButton.menu.children().find(
     // c => c.constructor.name == 'OffTextTrackMenuItem'
@@ -65,41 +88,56 @@ class BitmapSubtitle extends VjsPlugin {
 
   /** */
   updateMenu() {
-    const bitmapTracks = this.loadTracks();
-    const bitmapMenu = new BitmapMenuButton(this.player, bitmapTracks);
+    this.bitmapMenu = new BitmapMenuButton(this.player, {name: 'bitmapMenuButton'});
+    this.bitmapMenu.addClass('vjs-subtitles-button');
+    // place bitmapMenuButton after SubsCapsMenuButton
     const placement = this.player.controlBar.children().indexOf(this.player.controlBar.getChild('SubsCapsButton')) + 1;
 
-    bitmapMenu.addClass('vjs-subtitles-button');
-    this.player.controlBar.addChild(bitmapMenu, null, placement);
+    this.player.controlBar.addChild(this.bitmapMenu, null, placement);
+    this.bitmapTracks();
+    this.bitmapMenu.myitems = this.loadTracks();
+    // const bitmapTracks = this.loadTracks();
+    // console.log(tracks);
+
+    this.bitmapMenu.update();
+  }
+
+  /** */
+  bitmapTracks() {
+    const tracks = this.player.textTracks();
+
+    for (let i = 0; i < tracks.length; i++) {
+      if (tracks[i].kind === 'metadata' && tracks[i].label.startsWith('bitmap:')) {
+        this.tracks.push(tracks[i]);
+      }
+    }
+    return this.tracks;
   }
 
   /** */
   loadTracks() {
-    const tracks = this.player.textTracks();
     const items = [];
 
-    for (let i = 0; i < tracks.length; i++) {
-      if (!(tracks[i].kind === 'metadata' && tracks[i].label.startsWith('bitmap:'))) {
-        continue;
-      }
+    this.tracks.map(track => {
       const item = new VjsTextTrackMenuItem(this.player, {
-        label: this.options.labelPrefix + tracks[i].label.split(':')[2] + this.options.labelSuffix,
+        label: this.options.labelPrefix + track.label.split(':')[2] + this.options.labelSuffix,
         track: {
-          label: this.options.labelPrefix + tracks[i].label.split(':')[2] + this.options.labelSuffix,
-          language: tracks[i].language,
-          id: tracks[i].id,
-          default: tracks[i].default
+          label: this.options.labelPrefix + track.label.split(':')[2] + this.options.labelSuffix,
+          language: track.language,
+          id: track.id,
+          default: track.default
         }
       });
 
       // add native bitmap subtitle size
-      tracks[i].bitmapsub = { width: tracks[i].label.split(':')[1] };
-      if (tracks[i].default) {
-        tracks[i].mode = 'hidden';
-        this.currentSubtitle = tracks[i];
+      track.bitmapsub = { width: track.label.split(':')[1] };
+
+      if (track.default) {
+        track.mode = 'hidden';
+        this.currentSubtitle.track = track;
         this.selectItem(item);
       } else {
-        tracks[i].mode = 'disabled';
+        track.mode = 'disabled';
       }
       item.handleClick = () => {
         this.selectItem(item);
@@ -107,7 +145,7 @@ class BitmapSubtitle extends VjsPlugin {
       };
       // append item to subtitle menu
       items.push(item);
-    }
+    });
 
     return items;
   }
@@ -126,53 +164,53 @@ class BitmapSubtitle extends VjsPlugin {
     //     }
     //     this.disableSubtitle()
     // }
-    this.subtitle = this.bmpComponent.el().querySelector('#bitmap-subtitle');
-    this.player.addChild(this.bmpComponent);
+    this.subtitle = this.bmpSubContainer.el().querySelector('#bitmap-subtitle');
+    this.player.addChild(this.bmpSubContainer);
     // force displaying subtitle button into menu
-    this.player.controlBar.subsCapsButton.show();
+    // this.player.controlBar.subsCapsButton.show();
 
     // TODO move into handle function
     this.player.on('fullscreenchange', this.adjustSubtitleBottom.bind(this));
 
     this.player.on('playerresize', this.handlePlayerResize.bind(this));
-    if (!this.currentSubtitle) {
-      return;
+    if (this.currentSubtitle.track) {
+      this.currentSubtitle.track.addEventListener('cuechange', this.handleBitmapSubtitle.bind(this));
+      this.currentSubtitle.listener = true;
     }
-    this.currentSubtitle.addEventListener('cuechange', this.handleBitmapSubtitle.bind(this));
   }
 
   /** */
   handlePlayerResize() {
-    if (!this.currentSubtitle) {
+    if (!this.currentSubtitle.track) {
       return;
     }
-    const scaleSize = (this.player.textTrackDisplay.dimension('width') / this.currentSubtitle.bitmapsub.width).toFixed(2);
+    const scaleSize = (this.player.textTrackDisplay.dimension('width') / this.currentSubtitle.track.bitmapsub.width).toFixed(2);
 
-    this.bmpComponent.el().style.scale = `${scaleSize}`;
+    this.bmpSubContainer.el().style.scale = `${scaleSize}`;
     this.adjustSubtitleBottom();
   }
 
   /** */
   disableSubtitle() {
-    this.player.controlBar.subsCapsButton.menu
+    this.player.controlBar.getChild('bitmapMenuButton').menu
       .children().forEach(e => e.removeClass('vjs-selected'));
     // this.offSubtitle.addClass('vjs-selected')
-    this.bmpComponent.hide();
+    this.bmpSubContainer.hide();
   }
 
   /** */
   selectItem(item) {
     this.disableSubtitle();
-    this.bmpComponent.show();
+    this.bmpSubContainer.show();
     // this.offSubtitle.removeClass('vjs-selected')
     item.addClass('vjs-selected');
   }
 
   /** */
   handleBitmapSubtitle() {
-    if (this.currentSubtitle.activeCues.length) {
+    if (this.currentSubtitle.track.activeCues.length) {
       // active cues starts
-      const chunks = this.currentSubtitle.activeCues[0].text.split(' ');
+      const chunks = this.currentSubtitle.track.activeCues[0].text.split(' ');
       const backgroundImage = [this.options.pathPrefix, chunks[0]].join('/');
       const [width, height, driftX, driftY] = chunks[1].split(':');
 
@@ -181,30 +219,34 @@ class BitmapSubtitle extends VjsPlugin {
       this.subtitle.style.backgroundImage = `url(${backgroundImage})`;
       this.subtitle.style.backgroundPositionY = `-${driftY}px`;
       this.subtitle.style.backgroundPositionX = `-${driftX}px`;
-      this.bmpComponent.el().style.opacity = 1;
+      this.bmpSubContainer.el().style.opacity = 1;
     } else {
       // active cues ends
-      this.bmpComponent.el().style.opacity = 0;
+      this.bmpSubContainer.el().style.opacity = 0;
     }
   }
 
   /** */
   changeTrack(id) {
-    const tracks = this.player.textTracks();
-
-    for (let i = 0; i < tracks.length; i++) {
-      if (tracks[i].id !== id) {
-        tracks[i].mode = 'disabled';
-        continue;
+    // const tracks = this.player.textTracks();
+    this.tracks.map(track => {
+      if (track.id !== id) {
+        track.mode = 'disabled';
+        return;
       }
-      tracks[i].mode = 'hidden';
-      try {
-        this.currentSubtitle.removeEventListener('cuechange', this.handleBitmapSubtitle);
-      } catch (TypeError) { }
-      this.currentSubtitle = tracks[i];
+      track.mode = 'hidden';
+      // try {
+      //   this.currentSubtitle.removeEventListener('cuechange', this.handleBitmapSubtitle);
+      // } catch (TypeError) { }
+      if (this.currentSubtitle.listener) {
+        this.currentSubtitle.track.removeEventListener('cuechange', this.handleBitmapSubtitle);
+        this.currentSubtitle.listener = false;
+      }
+      this.currentSubtitle.track = track;
       this.handlePlayerResize();
-      this.currentSubtitle.addEventListener('cuechange', this.handleBitmapSubtitle.bind(this));
-    }
+      this.currentSubtitle.track.addEventListener('cuechange', this.handleBitmapSubtitle.bind(this));
+      this.currentSubtitle.listener = true;
+    });
   }
 
   /** */
@@ -229,6 +271,6 @@ class BitmapSubtitle extends VjsPlugin {
   }
 }
 
-videojs.registerComponent('bitmapSubComponent', BitmapSubComponent);
+videojs.registerComponent('bitmapSubContainer', BitmapSubContainer);
 videojs.registerComponent('bitmapMenuButton', BitmapMenuButton);
 videojs.registerPlugin('bitmapSubtitle', BitmapSubtitle);

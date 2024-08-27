@@ -43,10 +43,16 @@ main {
   display: inline-flex;
 }
 
-.vjs-user-active #bitmapsub-container {
-  bottom: calc(30px + var(--drift))
+.vjs-paused #bitmapsub-container {
+  /* bottom: calc(30px + var(--drift)); */
 }
 
+.vjs-paused #bitmapsub-container,
+.vjs-user-active #bitmapsub-container {
+  bottom: calc(30px + var(--drift));
+}
+
+.vjs-paused.vjs-fullscreen #bitmapsub-container,
 .vjs-user-active.vjs-fullscreen #bitmapsub-container {
   bottom: var(--drift);
 }
