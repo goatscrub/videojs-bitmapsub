@@ -1,7 +1,7 @@
 {
   "name": "videojs-bitmapsub",
   "author": "goatscrub Ludovic Mabilat",
-  "version": "0.8.2",
+  "version": "0.9.8",
   "description": "Play bitmap type subtitle into videojs",
   "license": "MIT",
   "private": true,
