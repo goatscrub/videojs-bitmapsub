@@ -8,7 +8,6 @@
   "main": "src/plugin.js",
   "browser": "dist/videojs-bitmapsub.js",
   "module": "dist/videojs-bitmapsub.es.js",
-  "type": "module",
   "scripts": {
     "build": "npm-run-all -s clean -p build:*",
     "build-prod": "cross-env-shell NO_TEST_BUNDLE=1 'npm run build'",
@@ -34,7 +33,7 @@
     "watch:js": "npm run build:js -- -w",
     "preview": "vite preview",
     "prepublishOnly": "npm-run-all build-prod && vjsverify --verbose --skip-es-check",
-    "bsproxy":"domain=$(basename ${VSCODE_WSFolder});browser-sync start -c ~/workflow/common/browser-sync.config.js --listen ${domain}.test -p ${domain}.test"
+    "bsproxy": "domain=$(basename ${VSCODE_WSFolder});browser-sync start -c ~/workflow/common/browser-sync.config.js --listen ${domain}.test -p ${domain}.test"
   },
   "devDependencies": {
     "@babel/runtime": "^7.14.0",
