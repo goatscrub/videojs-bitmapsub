@@ -16,7 +16,6 @@
     "build:js": "rollup -c scripts/rollup.config.js",
     "build:lang": "vjslang --dir dist/lang",
     "clean": "shx rm -rf ./dist ./test/dist ./cjs ./es && shx mkdir -p ./dist ./test/dist ./cjs ./es",
-    "dev": "vite",
     "docs": "npm-run-all docs:*",
     "docs:api": "jsdoc src -r -d docs/api",
     "docs:toc": "doctoc --notitle README.md",
@@ -93,12 +92,6 @@
     "src/",
     "test/"
   ],
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged",
-      "pre-push": "npm run test"
-    }
-  },
   "lint-staged": {
     "*.js": "vjsstandard --fix",
     "README.md": "doctoc --notitle"
