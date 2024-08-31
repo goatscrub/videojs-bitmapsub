@@ -5,30 +5,37 @@
   <meta charset="utf-8" />
   <title>videojs-bitmapsub Demo</title>
   <link href="node_modules/video.js/dist/video-js.css" rel="stylesheet" />
-  <link href="src/plugin.css" rel="stylesheet" id="css-bitmap-subtitle" />
   <script src="node_modules/video.js/dist/video.js"></script>
-  <script src="src/plugin.js"></script>
+  <link href="dist/videojs-bitmapsub.css" rel="stylesheet" id="css-bitmap-subtitle" />
+  <script src="dist/videojs-bitmapsub.js"></script>
+  <style>
+    main {
+      width: 50%;
+      padding-block: 3em;
+      margin-inline: auto;
+    }
+  </style>
 </head>
 
 <body>
   <main>
     <video id="sample" class="video-js vjs-default-skin" controls>
-      <source src="/tmp/darkwaters.mp4" type="video/mp4" />
-      <track default src="/tmp/darkwaters.eng.vtt" kind="metadata" label="bitmap:1920:english" language="en" />
-      <track src="/tmp/darkwaters.fre.vtt" kind="metadata" label="bitmap:1920:français" language="fre" />
-      <track src="/tmp/fake.vtt" kind="subtitles" label="fake en" language="en" />
-      <track src="/tmp/fake.vtt" kind="metadata" label="not bitmap subtitle" language="faulty" />
+      <source src="/tmp/darkwaters/darkwaters.mp4" type="video/mp4" />
+      <track default src="/tmp/darkwaters/darkwaters.eng.vtt" kind="metadata" label="bitmap:1920:english" language="en" />
+      <track src="/tmp/darkwaters/darkwaters.fre.vtt" kind="metadata" label="bitmap:1920:français" language="fr" />
     </video>
     <script>
       const vjsOptions = {
         fluid: true,
         controls: true,
         controlBar: {pictureInPictureToggle: false},
-        muted: true
+        muted: true,
         // autoplay: true,
       };
       const player = videojs('sample', vjsOptions);
-      player.bitmapSubtitle()
+      player.bitmapSubtitle({pathPrefix: '/tmp/darkwaters/'})
+      // player.currentTime(60 * 53);
+      player.currentTime(60 * 15);
       window.player = player
     </script>
   </main>
