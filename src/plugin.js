@@ -92,6 +92,7 @@ class BitmapSubtitle extends VjsPlugin {
       // Append listener for video size changes
       this.player.on('fullscreenchange', this.adjustSubtitlePosition.bind(this));
       this.player.on('playerresize', this.handlePlayerResize.bind(this));
+
     });
   }
 
@@ -114,8 +115,6 @@ class BitmapSubtitle extends VjsPlugin {
     // place bitmapMenuButton after SubsCapsMenuButton
     this.player.controlBar.addChild(this.bitmapMenu, null, bitmapMenuButtonPlacement);
 
-    this.bitmapSubtitleSettings = new BitmapSubtitleSettings(this.player);
-    this.player.addChild(this.bitmapSubtitleSettings);
   }
 
   /**
@@ -152,15 +151,9 @@ class BitmapSubtitle extends VjsPlugin {
    * @return {MenuItem[]} - settings and off menu item
   */
   menuControlItems() {
-    const settingsOptions = { label: 'Settings', name: 'bitmap-settings', id: 'bitmap-settings' };
     const offBitmapOptions = { label: 'Bitmap Off', name: 'bitmap-off', id: 'bitmap-off' };
-    const settings = new VjsMenuItem(this.player, settingsOptions);
     const offBitmap = new VjsMenuItem(this.player, offBitmapOptions);
 
-    settings.handleClick = () => {
-      // TODO: handleClick settings
-      // console.log('bitmap settings');
-    };
     offBitmap.handleClick = () => {
       const menu = this.player.controlBar.getChild('BitmapMenuButton').menu;
 
@@ -179,7 +172,7 @@ class BitmapSubtitle extends VjsPlugin {
       // Remove handler on this.currentSubtitle.track
       this.listenCueChange(false);
     };
-    return [settings, offBitmap];
+    return [offBitmap];
   }
 
   /**
@@ -347,7 +340,6 @@ class BitmapSubtitle extends VjsPlugin {
 BitmapSubtitle.VERSION = version;
 videojs.registerComponent('bitmapSubtitleContainer', BitmapSubtitleContainer);
 videojs.registerComponent('bitmapMenuButton', BitmapMenuButton);
-videojs.registerComponent('bitmapSubtitleSettings', BitmapSubtitleSettings);
 videojs.registerPlugin('bitmapSubtitle', BitmapSubtitle);
 
 export default BitmapSubtitle;
