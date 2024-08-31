@@ -16,8 +16,8 @@ class BitmapMenuButton extends VjsMenuButton {
    * @return {menuItem[]} - menu items
    */
   createItems() {
-    if (this.myitems) {
-      return this.myitems;
+    if (this.menuItems) {
+      return this.menuItems;
     }
     const {bitmapTracks = []} = this.options_;
 
@@ -30,7 +30,7 @@ class BitmapMenuButton extends VjsMenuButton {
 /**
  * bitmap subtitle container component
 */
-class BitmapSubContainer extends VjsComponent {
+class BitmapSubtitleContainer extends VjsComponent {
 
   /**
    * Create bitmap subtitle container DOM parts
@@ -53,8 +53,10 @@ class BitmapSubtitle extends VjsPlugin {
   /** Bitmap Subtitle Plugin constructor
    *
   * @param  {Player} player - A Video.js Player instance.
-  * @param  {Object} [options] - An optional options object.
-  *
+  * @param  {Object} [options] - pathPrefix: where to find image subtitles tiled, default: '/bitmapsub/'
+  *                            - labelPrefix: menu item label prefix, default: ''
+  *                            - labelPrefix: menu item label suffix, default: ' ⋅BMP'
+  *                            - component name, default: 'bitmapsub'
   */
   constructor(player, options) {
     // Default options for the plugin.
@@ -68,59 +70,80 @@ class BitmapSubtitle extends VjsPlugin {
     super(player, options);
     this.player = player;
     this.options = videojs.obj.merge(_pluginDefaults, options);
+    const cssRules = [...document.styleSheets]
+      .find(css => css.ownerNode.id === 'css-bitmap-subtitle').cssRules;
+
+    this.bmpSubtitleContainerStyle = [...cssRules]
+      .find(rule => rule.selectorText === '#bitmapsub-container').style;
+
     // handle only bitmap subtitle tracks
-    this.tracks = [];
+    this.bitmapTracks = [];
     // current subtitle track with associate event listener state
     this.currentSubtitle = {listener: false, track: false};
-    // instantiate Bitmap Subtitle Component
-    this.bmpSubContainer = new BitmapSubContainer(this.player, this.options);
-    this.player.addChild(this.bmpSubContainer);
+    // Append extra components to videojs UI
+    this.appendComponent();
+    this.player.controlBar.ready(e => {
+      this.ctrlBarHeight = this.player.controlBar.height();
+      this.bmpSubtitleContainerStyle.setProperty('--control-bar-height', `${this.ctrlBarHeight}px`);
+    });
+
     this.player.ready(e => {
       this.updateMenu();
-      this.player.currentTime(60 * 53);
-      this.css = [...document.styleSheets]
-        .find(css => css.ownerNode.id === 'css-bitmap-subtitle').cssRules;
-      this.activeContainerStyle = [...this.css].find(r => r.selectorText === '#bitmapsub-container').style;
-      this.subtitle = this.bmpSubContainer.el().querySelector('#bitmap-subtitle');
-      this.player.addChild(this.bmpSubContainer);
-
-      // TODO move into handle function
-      this.player.on('fullscreenchange', this.adjustSubtitleBottom.bind(this));
+      // Append listener for video size changes
+      this.player.on('fullscreenchange', this.adjustSubtitlePosition.bind(this));
       this.player.on('playerresize', this.handlePlayerResize.bind(this));
     });
+  }
+
+  /**
+   * Append bitmap subtitle extra components to videojs UI
+   */
+  appendComponent() {
+    const bitmapMenuButtonPlacement = this.player.controlBar.children()
+      .indexOf(this.player.controlBar.getChild('SubsCapsButton')) + 1;
+
+    // instantiate Bitmap Subtitle Component
+    this.bmpSubContainer = new BitmapSubtitleContainer(this.player, this.options);
+    this.player.addChild(this.bmpSubContainer);
+    this.subtitleElement = this.bmpSubContainer.el().querySelector('#bitmap-subtitle');
+
+    // append bitmap menu into videojs controlbar
+    this.bitmapMenu = new BitmapMenuButton(this.player, {name: 'bitmapMenuButton'});
+    this.bitmapMenu.addClass('vjs-subtitles-button');
+
+    // place bitmapMenuButton after SubsCapsMenuButton
+    this.player.controlBar.addChild(this.bitmapMenu, null, bitmapMenuButtonPlacement);
+
+    this.bitmapSubtitleSettings = new BitmapSubtitleSettings(this.player);
+    this.player.addChild(this.bitmapSubtitleSettings);
   }
 
   /**
    * Build bitmap subtitle menu
   */
   updateMenu() {
-    this.bitmapMenu = new BitmapMenuButton(this.player, {name: 'bitmapMenuButton'});
-    this.bitmapMenu.addClass('vjs-subtitles-button');
-    // place bitmapMenuButton after SubsCapsMenuButton
-    const placement = this.player.controlBar.children().indexOf(this.player.controlBar.getChild('SubsCapsButton')) + 1;
-
-    this.player.controlBar.addChild(this.bitmapMenu, null, placement);
-    this.bitmapTracks();
-    this.bitmapMenu.myitems = this.buildTrackMenuItems();
+    this.bitmapTracks = this.getBitmapTracks();
+    this.bitmapMenu.menuItems = this.buildTrackMenuItems();
     this.bitmapMenu.update();
   }
 
   /**
-   * Define this.tracks, by filtering this.player.textTracks()
-   * against metadata and label starting with 'bitmap:' string.
+   * Returns a list of textTrack from all tracks filtered by kind
+   * against 'metadata' type and label starting with 'bitmap:' prefix.
    *
    *  @return {textTracks[]} - list of textTracks filtered
    *
   */
-  bitmapTracks() {
-    const tracks = this.player.textTracks();
+  getBitmapTracks() {
+    const allTracks = this.player.textTracks();
+    const bitmapTracks = [];
 
-    for (let i = 0; i < tracks.length; i++) {
-      if (tracks[i].kind === 'metadata' && tracks[i].label.startsWith('bitmap:')) {
-        this.tracks.push(tracks[i]);
+    for (let i = 0; i < allTracks.length; i++) {
+      if (allTracks[i].kind === 'metadata' && allTracks[i].label.startsWith('bitmap:')) {
+        bitmapTracks.push(allTracks[i]);
       }
     }
-    return this.tracks;
+    return bitmapTracks;
   }
 
   /**
@@ -128,7 +151,7 @@ class BitmapSubtitle extends VjsPlugin {
    *
    * @return {MenuItem[]} - settings and off menu item
   */
-  controlItems() {
+  menuControlItems() {
     const settingsOptions = { label: 'Settings', name: 'bitmap-settings', id: 'bitmap-settings' };
     const offBitmapOptions = { label: 'Bitmap Off', name: 'bitmap-off', id: 'bitmap-off' };
     const settings = new VjsMenuItem(this.player, settingsOptions);
@@ -145,8 +168,8 @@ class BitmapSubtitle extends VjsPlugin {
       menu.children().forEach(item => {
         item.removeClass('vjs-selected');
       });
-      // Disable all tracks from this.tracks
-      this.tracks.forEach(track => {
+      // Disable all tracks from this.bitmapTracks
+      this.bitmapTracks.forEach(track => {
         track.mode = 'disabled';
       });
       // Select current items into bitmap menu
@@ -167,7 +190,7 @@ class BitmapSubtitle extends VjsPlugin {
   buildTrackMenuItems() {
     let items = [];
 
-    this.tracks.map(track => {
+    this.bitmapTracks.map(track => {
       const item = new VjsTextTrackMenuItem(this.player, {
         label: this.options.labelPrefix + track.label.split(':')[2] + this.options.labelSuffix,
         track: {
@@ -199,7 +222,7 @@ class BitmapSubtitle extends VjsPlugin {
     // If at least one item, append controls items,
     // because menu is hidden if contains 0 items.
     if (items) {
-      items = [...this.controlItems(), ...items];
+      items = [...this.menuControlItems(), ...items];
     }
 
     return items;
@@ -215,7 +238,7 @@ class BitmapSubtitle extends VjsPlugin {
     const scaleSize = (this.player.textTrackDisplay.dimension('width') / this.currentSubtitle.track.bitmapsub.width).toFixed(2);
 
     this.bmpSubContainer.el().style.scale = `${scaleSize}`;
-    this.adjustSubtitleBottom();
+    this.adjustSubtitlePosition();
   }
 
   /**
@@ -257,7 +280,7 @@ class BitmapSubtitle extends VjsPlugin {
 
       style = `width:${width}px;height:${height}px;background-image:url(${backgroundImage});`;
       style = `${style}background-position-x:-${driftX}px;background-position-y:-${driftY}px`;
-      this.subtitle.style = style;
+      this.subtitleElement.style = style;
       this.bmpSubContainer.el().style.opacity = 1;
     } else {
       // active cues ends
@@ -286,7 +309,7 @@ class BitmapSubtitle extends VjsPlugin {
    * @param {string} id - track id
    */
   changeTrack(id) {
-    this.tracks.forEach(track => {
+    this.bitmapTracks.forEach(track => {
       if (track.id !== id) {
         track.mode = 'disabled';
         return;
@@ -294,38 +317,37 @@ class BitmapSubtitle extends VjsPlugin {
       track.mode = 'hidden';
       this.listenCueChange(false);
       this.currentSubtitle.track = track;
-      this.handlePlayerResize();
-      this.listenCueChange(true);
+      this.listenCueChange();
     });
   }
 
   /**
-   * Compute blank height, against video window,
+   * Compute blank height against video window,
    * to adjust subtitle container height.
   */
-  adjustSubtitleBottom() {
-    // adding extra bottom space based on arbitrary video height fraction
-    const subtitleBottomMargin = (this.player.children()[0].getBoundingClientRect().height / 32) * window.devicePixelRatio;
-    const ctrlBarHeight = this.player.controlBar.height();
+  adjustSubtitlePosition() {
+    // Adding extra bottom space based on arbitrary video height fraction
+    const subtitleBottomMargin = this.player.textTrackDisplay.height() / 32;
     let drift = subtitleBottomMargin;
 
     if (this.player.isFullscreen()) {
-      // bottom of video is computed against textTrackDisplay
-      // dimensions, device aspect ration must be applied
-      const videoBottomBlank = ((screen.height - this.player.textTrackDisplay.height()) / 2);
+      const textTrackDisplayY = Math.round(this.player.textTrackDisplay.getPositions().boundingClientRect.y);
 
-      if (videoBottomBlank >= ctrlBarHeight) {
-        drift += videoBottomBlank;
+      if (textTrackDisplayY < this.ctrlBarHeight) {
+        drift += (this.ctrlBarHeight - textTrackDisplayY);
       } else {
-        drift += ctrlBarHeight;
+        drift += textTrackDisplayY;
       }
     }
-    this.activeContainerStyle.setProperty('--drift', `${drift}px`);
+    // Device aspect ration must be applied
+    drift = drift * window.devicePixelRatio;
+    this.bmpSubtitleContainerStyle.setProperty('--drift', `${drift}px`);
   }
 }
 BitmapSubtitle.VERSION = version;
-videojs.registerComponent('bitmapSubContainer', BitmapSubContainer);
+videojs.registerComponent('bitmapSubtitleContainer', BitmapSubtitleContainer);
 videojs.registerComponent('bitmapMenuButton', BitmapMenuButton);
+videojs.registerComponent('bitmapSubtitleSettings', BitmapSubtitleSettings);
 videojs.registerPlugin('bitmapSubtitle', BitmapSubtitle);
 
 export default BitmapSubtitle;

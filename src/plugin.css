@@ -1,29 +1,6 @@
-/**,
-*::before,
-*::after {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-    font-family: sans-serif;
-}
-
-input,
-textarea,
-button {
-    font-family: inherit;
-}
-*/
-main {
-  width: 50%;
-  padding-block: 3em;
-  margin-inline: auto;
-}
-
 #bitmapsub-container {
   --drift: 0;
+  --control-bar-height: 30px;
   display: none;
   position: absolute;
   padding: 2ch;
@@ -43,17 +20,15 @@ main {
   display: inline-flex;
 }
 
-.vjs-paused #bitmapsub-container {
-  /* bottom: calc(30px + var(--drift)); */
-}
-
 .vjs-paused #bitmapsub-container,
-.vjs-user-active #bitmapsub-container {
-  bottom: calc(30px + var(--drift));
+.vjs-user-active #bitmapsub-container,
+.vjs-user-active.vjs-fullscreen #bitmapsub-container {
+  bottom: calc(var(--control-bar-height) + var(--drift));
 }
 
 .vjs-paused.vjs-fullscreen #bitmapsub-container,
-.vjs-user-active.vjs-fullscreen #bitmapsub-container {
+/* .vjs-user-active.vjs-fullscreen #bitmapsub-container { */
+.vjs-fullscreen #bitmapsub-container {
   bottom: var(--drift);
 }
 
