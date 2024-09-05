@@ -500,13 +500,13 @@ current_webvtt_cue=[]
 pack=PackImages(supfile_info.nof_subs, prefix=pack_prefix, rows=rows, columns=columns)
 webvtt_path = os.path.join(pack.tmpd.name, webvtt_filename)
 webvtt_file=open(webvtt_path, 'w')
-webvtt_file.write(f'WEBVTT - {basename}\n')
-webvtt_file.write('NOTE\n')
-webvtt_file.write('file generated with {0} {1}\n'.format(
+webvtt_file.write(f'WEBVTT - {basename}\n\n')
+webvtt_file.write('NOTE Video size: {}\n')
+webvtt_file.write('NOTE File generated with {0} {1}\n'.format(
     cliParser.prog,
     str(datetime.datetime.now()).split('.')[0]
 ))
-webvtt_file.write('cue content format:\nrelative bitmap pathname width:height:driftX:driftY\n')
+webvtt_file.write('NOTE Cue format: bitmap-file.png width:height:driftX:driftY\n')
 while True:
     '''
     PGS: Presentation Graphic Stream
