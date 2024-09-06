@@ -27,7 +27,6 @@
 }
 
 .vjs-paused.vjs-fullscreen #bitmapsub-container,
-/* .vjs-user-active.vjs-fullscreen #bitmapsub-container { */
 .vjs-fullscreen #bitmapsub-container {
   bottom: var(--drift);
 }
@@ -35,8 +34,10 @@
 #bitmap-subtitle {
   display: inline-block;
   background-repeat: no-repeat;
-  /* filter: invert(100%) sepia(100%) saturate(4000%) hue-rotate(190deg); */
-  /* border: 1px solid crimson; */
+}
+
+#bitmapsub-container.vobsub #bitmap-subtitle {
+  filter: invert(1) sepia(1) saturate(2) hue-rotate(0deg);
 }
 
 .vjs-control-bar {

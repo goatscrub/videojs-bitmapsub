@@ -7,7 +7,7 @@ const VjsTextTrackMenuItem = videojs.getComponent('TextTrackMenuItem');
 
 /**
  * Bitmap Subtitle Menu Button
-*/
+ */
 class BitmapMenuButton extends VjsMenuButton {
   /**
    * Bitmap Subtitle Menu Builder,
@@ -29,7 +29,7 @@ class BitmapMenuButton extends VjsMenuButton {
 }
 /**
  * bitmap subtitle container component
-*/
+ */
 class BitmapSubtitleContainer extends VjsComponent {
 
   /**
@@ -114,7 +114,6 @@ class BitmapSubtitle extends VjsPlugin {
 
     // place bitmapMenuButton after SubsCapsMenuButton
     this.player.controlBar.addChild(this.bitmapMenu, null, bitmapMenuButtonPlacement);
-
   }
 
   /**
@@ -138,7 +137,7 @@ class BitmapSubtitle extends VjsPlugin {
     const bitmapTracks = [];
 
     for (let i = 0; i < allTracks.length; i++) {
-      if (allTracks[i].kind === 'metadata' && allTracks[i].label.startsWith('bitmap:')) {
+      if (allTracks[i].kind === 'metadata' && allTracks[i].label.match(/^(pgssub|vobsub):(\d+):/)) {
         bitmapTracks.push(allTracks[i]);
       }
     }
@@ -176,6 +175,22 @@ class BitmapSubtitle extends VjsPlugin {
   }
 
   /**
+   * Set bitmap subtitle container class name attribute,
+   * against bitmap track variation, pgssub or vobsub.
+   *
+   * @param {string} bitmapVariation - "pgssub" or "vobsub"
+   */
+  bitmapSubContainerClass(bitmapVariation) {
+    if (bitmapVariation === 'pgssub') {
+      this.bmpSubContainer.removeClass('vobsub');
+      this.bmpSubContainer.addClass('pgssub');
+    } else {
+      this.bmpSubContainer.addClass('vobsub');
+      this.bmpSubContainer.removeClass('pgssub');
+    }
+  }
+
+  /**
    * Compute bitmap track menu items for bitmap subtitle menu
    *
    * @return {textTrackMenuItem[]} - list of textTrackMenuItem filtered
@@ -196,25 +211,28 @@ class BitmapSubtitle extends VjsPlugin {
 
       // add native bitmap subtitle size
       track.bitmapsub = { width: track.label.split(':')[1] };
+      const bitmapVariation = track.label.split(':')[0];
 
       if (track.default) {
         track.mode = 'hidden';
         this.currentSubtitle.track = track;
         this.selectItem(item);
         this.listenCueChange();
+        this.bitmapSubContainerClass(bitmapVariation);
       } else {
         track.mode = 'disabled';
       }
       item.handleClick = () => {
         this.selectItem(item);
         this.changeTrack(item.track.id);
+        this.bitmapSubContainerClass(bitmapVariation);
       };
       // append item to subtitle menu
       items.push(item);
     });
     // If at least one item, append controls items,
     // because menu is hidden if contains 0 items.
-    if (items) {
+    if (items.length) {
       items = [...this.menuControlItems(), ...items];
     }
 
