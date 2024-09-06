@@ -5,6 +5,8 @@ This videojs plugin helps you displaying bitmap subtitle type, like vobsub (DVD:
 It can't handle vobsub or pgssub file as-is, you need to generate individual bitmap subtitle image and pack it into large images files. After that, plugin select a subtitle by surrounding it one and display into your player instance.  
 This repository provide all you need to extract subtitle image from vobsub or pgssub and pack all this images into bigger ones.
 
+what metadata track contains
+
 No OCR involved into this process. Bitmap subtitles are displayed as image, and they are packed into bigger file to avoid HTTP traffic, but it's not mandatory.
 ## Table of Contents
 
@@ -26,6 +28,27 @@ No OCR involved into this process. Bitmap subtitles are displayed as image, and 
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
+## Which information are needed for your track
+```
+<!-- DVD -->
+<track default src="/tmp/darkwaters/darkwaters.eng.vtt" kind="metadata" label="pgssub:1920:english" language="en" />
+
+<!-- bluray -->
+<track default src="/tmp/darkwaters/darkwaters.eng.vtt" kind="metadata" label="pgssub:1920:english" language="en" />
+```
+
+## What metadata track contains
+```
+WEBVTT - python.sub
+
+NOTE Video size: 720x576
+NOTE File generated with vob2imgpacked.php 2024-09-05 07:09:37
+NOTE Cue format: bitmap-file.png width:height:driftX:driftY
+
+1
+00:00:49.760 --> 00:00:51.239
+python.1.vobsub.png 73:22:0:0
+```
 ## What you need
 
 install pluing and add it to your player, with:
