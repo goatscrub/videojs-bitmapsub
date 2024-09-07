@@ -1,88 +1,90 @@
 # videojs-bitmapsub
 
-This videojs plugin helps you displaying bitmap subtitle type, like vobsub (DVD: .vob and .idx) or pgssub (Blueray: .sup), into video.js player as image.
+This videojs plugin helps you displaying bitmap subtitle type, like vobsub (DVD) or pgssub (Blueray), into video.js player as images.
 
-It can't handle vobsub or pgssub file as-is, you need to generate individual bitmap subtitle image and pack it into large images files. After that, plugin select a subtitle by surrounding it one and display into your player instance.  
-This repository provide all you need to extract subtitle image from vobsub or pgssub and pack all this images into bigger ones.
-
-what metadata track contains
-
-No OCR involved into this process. Bitmap subtitles are displayed as image, and they are packed into bigger file to avoid HTTP traffic, but it's not mandatory.
 ## Table of Contents
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-  - [What you need](#what-you-need)
-    - [options available and defaults](#options-available-and-defaults)
+  - [How it works](#how-it-works)
+  - [Usage](#usage)
+    - [Setting up plugin](#setting-up-plugin)
+    - [Plugin options and defaults values](#plugin-options-and-defaults-values)
+  - [Prepare your data](#prepare-your-data)
+  - [How to configure your track](#how-to-configure-your-track)
+    - [Examples](#examples)
+  - [What metadata track contains](#what-metadata-track-contains)
   - [script to generate tiled images](#script-to-generate-tiled-images)
     - [DVD vobsub vob2imgpacked.php](#dvd-vobsub-vob2imgpackedphp)
     - [Bluray pgssub](#bluray-pgssub)
 - [Crédits](#cr%C3%A9dits)
-  - [Installation](#installation)
-  - [Usage](#usage)
-    - [`<script>` Tag](#script-tag)
-    - [Browserify/CommonJS](#browserifycommonjs)
-    - [RequireJS/AMD](#requirejsamd)
   - [License](#license)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+## How it works
+This plugin can't handle vobsub or pgssub file as-is, you need to generate individual bitmap subtitle image and pack it into large images files. With a  webvtt metadata track file describe which and when image must be displayed with its cues.  
+With that description, plugin select corresponding image region from packed images and display at given time into your player instance.  
+This repository provide all you need to:
+- extract subtitles images from vobsub or pgssub
+- pack individual images into bigger ones
+- generate corresponding webvtt metadata file description
 
-## Which information are needed for your track
+> __**NOTE:**__ No OCR (Optical Character Recognition) involved into this process. Again, bitmap subtitles are displayed as images, and they are packed into bigger file only to avoid HTTP traffic, but it's not mandatory.
+## Usage
+Append CSS and javascript into your document. **CSS link need a specific id**: `css-bitmap-subtitle`:
 ```
-<!-- DVD -->
-<track default src="/tmp/darkwaters/darkwaters.eng.vtt" kind="metadata" label="pgssub:1920:english" language="en" />
+<link href="//path-plugin/dist/videojs-bitmapsub.min.css" rel="stylesheet" id="css-bitmap-subtitle" />
+<script src="//path-plugin/dist/videojs-bitmapsub.js"></script>
+```
+### Setting up plugin
+Two video.js classical ways, at video.js player creation:
+```
+<!-- @ player creation -->
+<script type="text/javascript">
+videojs('sample', {
+  plugins: {
+    bitmapSubtitle: { pathPrefix: '/images-subtitles/'}
+    }
+  }
+});
+</script>
 
-<!-- bluray -->
-<track default src="/tmp/darkwaters/darkwaters.eng.vtt" kind="metadata" label="pgssub:1920:english" language="en" />
+<!-- @ passing options directly to plugin -->
+<script type="text/javascript">
+const player=videojs('sample')
+player.bitmapSubtitle({ pathPrefix: '/images-subtitles/'})
+</script>
 ```
-
-## What metadata track contains
-```
-WEBVTT - python.sub
-
-NOTE Video size: 720x576
-NOTE File generated with vob2imgpacked.php 2024-09-05 07:09:37
-NOTE Cue format: bitmap-file.png width:height:driftX:driftY
-
-1
-00:00:49.760 --> 00:00:51.239
-python.1.vobsub.png 73:22:0:0
-```
-## What you need
-
-install pluing and add it to your player, with:
-```
-npm install --save-dev videojs-bitmapsub
-```
-
-Append plugin and CSS:
-```
-<link href="dist/videojs-bitmapsub.css" rel="stylesheet" id="css-bitmap-subtitle" />
-<script src="dist/videojs-bitmapsub.js"></script>
-```
-append to your video.js player with option:
-```
-player_vobsub.bitmapSubtitle({pathPrefix: '/tmp/montypython/'})
-```
-
-### options available and defaults
+### Plugin options and defaults values
 
 |name|default|description|
 |----|---|---|
-|pathPrefix|'/bitmapsub/'|relative path to your tiled image files|
-|labelPrefix|''|menu label prefix|
-|labelSuffix|' ⋅BMP'|menu label suffix|
+|pathPrefix|`'/bitmapsub/'`|web path to your subtitles packed images files|
+|labelPrefix|`''`|menu label prefix|
+|labelSuffix|`' ⋅BMP'`|menu label suffix|
 |name|bitmapsub|plugin name|
 
-## script to generate tiled images
-### DVD vobsub vob2imgpacked.php
-It's an ugly script wrapper arround sub2png.
+## Prepare your data
+### Generate subtitles images packs
+#### DVD .vob and .idx files — vob2imgpacked.php
+For DVD subtitles, two files are needed, a `.vob` and a `.idx`. With vobsub2imgpacked.php you can specify one of them, second one is automaticaly find.  
+It's an ugly script wrapper arround `sub2png` executable. (Why in PHP ?)
 ```
 ./vob2imgpacked.php -i tmp/montypython/python.sub -o tmp/montypython/
+
+./vob2imgpacked.php -h
+vobsub2imgpacked.php
+
+ -i    Input vobsub file, .sub or .idx extension
+ -o    Output directory
+ -d    Debug mode, don't remove generated files.
+ -h    This help description.
+ -v    Print program version.
+
 ```
 ### Bluray pgssub
-Python script, relatively slow. default columns and row values
+Python script, relatively slow. default columns and row values .sup files
 ```
 usage: pgssub2imgpacked.py [-h] [-c COLUMNS] [-d] [-r ROWS] [-l LIMIT] [-t TARGETDIRECTORY] filename
 
@@ -100,64 +102,48 @@ options:
   -t TARGETDIRECTORY, --targetDirectory TARGETDIRECTORY
 
 ```
+- image
+- metadata track
+## How to configure your track
+Bitmapsub plugin search for metadata track and filters them by label prefix.  
+Label prefix format is: `subtitle_type:video_width:track_label`
+|type|example|description|
+|---|---|---|
+|`vobsub`|`label="vobsub:720:english"`|DVD source with video image width 720px and label text `english`|
+|`pgssub`|`label="pgssub:1920:français"`|Bluray source with video image width 1920px and label text `françFais`|
+
+### Examples
+```
+<!-- DVD -->
+<track default src="/webvtt-path/file.vtt" kind="metadata" label="pgssub:1920:english" language="eng" />
+<!-- bluray -->
+<track src="/webvtt-path/file.vtt" kind="metadata" label="pgssub:1920:français" language="fre" />
+```
+
+## What metadata track contains
+```
+WEBVTT - python.sub
+
+NOTE Video size: 720x576
+NOTE File generated with vob2imgpacked.php 2024-09-05 07:09:37
+NOTE Cue format: bitmap-file.png width:height:driftX:driftY
+
+1
+00:00:49.760 --> 00:00:51.239
+python.1.vobsub.png 73:22:0:0
+```
 
 # Crédits
 differentes sources de docs, vobsub & pgssub
 de code pgsreader et inspiration
-
-## Installation
-
-```sh
-npm install --save videojs-bitmapsub
-```
-
-## Usage
-
-To include videojs-bitmapsub on your website or web application, use any of the following methods.
-
-### `<script>` Tag
-
-This is the simplest case. Get the script in whatever way you prefer and include the plugin _after_ you include [video.js][videojs], so that the `videojs` global is available.
-
-```html
-<script src="//path/to/video.min.js"></script>
-<script src="//path/to/videojs-bitmapsub.min.js"></script>
-<script>
-  var player = videojs('my-video');
-
-  player.bitmapsub();
-</script>
-```
-
-### Browserify/CommonJS
-
-When using with Browserify, install videojs-bitmapsub via npm and `require` the plugin as you would any other module.
-
-```js
-var videojs = require('video.js');
-
-// The actual plugin function is exported by this module, but it is also
-// attached to the `Player.prototype`; so, there is no need to assign it
-// to a variable.
-require('videojs-bitmapsub');
-
-var player = videojs('my-video');
-
-player.bitmapsub();
-```
-
-### RequireJS/AMD
-
-When using with RequireJS (or another AMD library), get the script in whatever way you prefer and `require` the plugin as you normally would:
-
-```js
-require(['video.js', 'videojs-bitmapsub'], function(videojs) {
-  var player = videojs('my-video');
-
-  player.bitmapsub();
-});
-```
-
+- [Presentation Graphic Stream (SUP files) BluRay Subtitle Format](https://blog.thescorpius.com/index.php/2017/07/15/presentation-graphic-stream-sup-files-bluray-subtitle-format/)
+- [packetized elementary stream](https://en.wikipedia.org/wiki/Packetized_elementary_stream)
+- [pgsreader](https://github.com/EzraBC/pgsreader)
+- [mpeg program stream — wikipedia](https://en.wikipedia.org/wiki/MPEG_program_stream)
+- [Packetized Elementary Stream Headers](https://dvd.sourceforge.net/dvdinfo/pes-hdr.html)
+- [sup-decode](https://github.com/robjtede/sup-decode/blob/master/src/decode/rle.rs)
+- [SupSubtitleParser](https://github.com/yzi2004/SupSubtitleParser)
+- [pattent](https://patentimages.storage.googleapis.com/ab/c6/ed/195ad89b2b8f10/US7912305.pdf)
 ## License
 
 MIT. Copyright (c) goatscrub Ludovic Mabilat
