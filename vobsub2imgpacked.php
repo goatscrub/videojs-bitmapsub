@@ -11,6 +11,7 @@ if (isset($options['h']) && $options['h'] === false) {
   echo ' -h    This help description.' . PHP_EOL;
   echo ' -v    Print program version.' . PHP_EOL;
   echo '' . PHP_EOL;
+  exit(0);
 }
 if (isset($options['i'])) {
   $opt_input = $options['i'];
