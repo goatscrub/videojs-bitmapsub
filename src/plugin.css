@@ -1,4 +1,4 @@
-#bitmapsub-container {
+.bitmapsub-container {
   --drift: 0;
   --control-bar-height: 30px;
   display: none;
@@ -16,30 +16,30 @@
   pointer-events: none;
 }
 
-.vjs-has-started #bitmapsub-container {
+.vjs-has-started .bitmapsub-container {
   display: inline-flex;
-}
-
-.vjs-paused #bitmapsub-container,
-.vjs-user-active #bitmapsub-container,
-.vjs-user-active.vjs-fullscreen #bitmapsub-container {
-  bottom: calc(var(--control-bar-height) + var(--drift));
-}
-
-.vjs-paused.vjs-fullscreen #bitmapsub-container,
-.vjs-fullscreen #bitmapsub-container {
-  bottom: var(--drift);
-}
-
-#bitmap-subtitle {
-  display: inline-block;
-  background-repeat: no-repeat;
-}
-
-#bitmapsub-container.vobsub #bitmap-subtitle {
-  filter: invert(1) sepia(1) saturate(2) hue-rotate(0deg);
 }
 
 .vjs-control-bar {
   z-index: 100;
+}
+
+.bitmap-subtitle {
+  display: inline-block;
+  background-repeat: no-repeat;
+}
+
+.vjs-paused .bitmapsub-container,
+.vjs-user-active .bitmapsub-container,
+.vjs-user-active.vjs-fullscreen .bitmapsub-container {
+  bottom: calc(var(--control-bar-height) + var(--drift));
+}
+
+.vjs-paused.vjs-fullscreen .bitmapsub-container,
+.vjs-fullscreen .bitmapsub-container {
+  bottom: var(--drift);
+}
+
+.bitmapsub-container.vobsub .bitmap-subtitle {
+  filter: invert(1) sepia(1) saturate(2) hue-rotate(0deg);
 }

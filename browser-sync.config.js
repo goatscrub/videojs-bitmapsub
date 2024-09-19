@@ -3,7 +3,11 @@
  |   http://www.browsersync.io/docs/options/
  */
 module.exports = {
-    files: ["**/*.css", "**/*.html", "**/*.js", "**/*.php", "**/*.json"],
+    files: [
+        "dist/videojs-bitmapsub.js",
+        "dist/videojs-bitmapsub.css",
+        "index.html",
+    ],
     watch: true,
     server: false,
     serveStatic: [

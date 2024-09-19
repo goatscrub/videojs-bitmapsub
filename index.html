@@ -8,6 +8,7 @@
   <script src="node_modules/video.js/dist/video.js"></script>
   <link href="dist/videojs-bitmapsub.css" rel="stylesheet" id="css-bitmap-subtitle" />
   <script src="dist/videojs-bitmapsub.js"></script>
+  <script src="node_modules/videojs-hotkeys/videojs.hotkeys.min.js"></script>
   <style>
     main {
       width: 50%;
@@ -19,24 +20,54 @@
 
 <body>
   <main>
-    <video id="sample" class="video-js vjs-default-skin" controls>
-      <source src="/tmp/darkwaters/darkwaters.mp4" type="video/mp4" />
-      <track default src="/tmp/darkwaters/darkwaters.eng.vtt" kind="metadata" label="bitmap:1920:english" language="en" />
-      <track src="/tmp/darkwaters/darkwaters.fre.vtt" kind="metadata" label="bitmap:1920:français" language="fr" />
+
+    <video id="vobsub" class="video-js vjs-default-skin" controls>
+      <source src="/tmp/montypython/python.mp4" type="video/mp4" />
+      <track default src="/tmp/montypython/python.vtt" kind="metadata" label="vobsub:720:english" language="en" />
     </video>
+
+    <video id="pgssub" class="video-js vjs-default-skin" controls>
+      <source src="/tmp/darkwaters/darkwaters.mp4" type="video/mp4" />
+      <track default src="/tmp/darkwaters/darkwaters.eng.vtt" kind="metadata" label="pgssub:1920:english" language="en" />
+      <track src="/tmp/darkwaters/darkwaters.fre.vtt" kind="metadata" label="pgssub:1920:français" language="fr" />
+      <track src="/tmp/fake.vtt" kind="metadata" id="bitmapsub-test-only" label="pgssub:360:test-only" language="fr" />
+    </video>
+
     <script>
-      const vjsOptions = {
+      // vobsub
+      const commonOptions = {
         fluid: true,
         controls: true,
-        controlBar: {pictureInPictureToggle: false},
+        controlBar: { pictureInPictureToggle: false },
+        plugins: {
+          hotkeys: { alwaysCaptureHotkeys: true },
+        }
+      }
+      const vjsVobsubOpt = {
+        ...commonOptions,
         muted: true,
         // autoplay: true,
       };
-      const player = videojs('sample', vjsOptions);
-      player.bitmapSubtitle({pathPrefix: '/tmp/darkwaters/'})
+      const player_vobsub = videojs('vobsub', vjsVobsubOpt);
+      window.vplayer = player_vobsub
+
+      player_vobsub.bitmapSubtitle({ pathPrefix: '/tmp/montypython/' })
       // player.currentTime(60 * 53);
-      player.currentTime(60 * 15);
+      player_vobsub.currentTime(60 * 12);
+
+      // subp
+      const vjsOptions = {
+        ...commonOptions,
+        muted: true,
+        // autoplay: true,
+        plugins: {
+          bitmapSubtitle: { pathPrefix: '/tmp/darkwaters/' },
+        }
+      };
+      const player = videojs('pgssub', vjsOptions);
       window.player = player
+      player.currentTime(60 * 53);
+      // player.currentTime(60 * 15);
     </script>
   </main>
 </body>

@@ -146,9 +146,15 @@ class PackImages:
         self.startColumn()
 
     def getCue(self, width, height):
-        # return a string containing:
-        # {filename of the pack} {width}:{height}:{drift_x}:{drift_y}
-        # print(self.current_pack, self.current_column, self.packs)
+        '''
+        returns subtitle cue content with format:
+        {filename of the pack}:{width}:{height}:{drift_x}:{drift_y}
+
+        :param width: subtitle image width
+        :param height: subtitle image height
+        :return: cue content
+        :rtype: string
+        '''
         if width > self.largest: self.largest=width
 
         if self.count > 0:
@@ -165,7 +171,7 @@ class PackImages:
                 self.driftY=0
                 self.endColumn()
 
-        output=f'{self.packFilename()} {width}:{height}:{self.driftX}:{self.driftY}'
+        output=f'{self.packFilename()}:{width}:{height}:{self.driftX}:{self.driftY}'
         # updating drift Y and count
         self.driftY+=height
         self.count+=1
@@ -179,15 +185,12 @@ class PackImages:
         )
 
     def makeSubtitleImage(self, ds):
-        ''' Create subtitle image from a display set
-            Parameters
-            ----------
-            ds : Display Set
+        '''
+        Create subtitle image from a display set
 
-            Returns
-            -------
-            tuple
-                (self.GetCue, image_filepath)
+        :param ds: Display Set
+        :return: tuple (self.GetCue, image_filepath)
+        :rtype: tuple
         '''
         n=0
         while n < ds['pcs'].nof_obj:
@@ -206,7 +209,13 @@ class PackImages:
         return (pack.getCue(w, h), subtitle_image_filename)
 
 def ms2time(milliseconds):
-    ''' Convert milliseconds into string time like: HH:MM:SS.mm'''
+    '''
+    Convert milliseconds into string time
+
+    :param milliseconds: time in milliseconds
+    :return: string like HH:MM:SS.mm
+    :rtype: string
+    '''
     time=str(datetime.timedelta(milliseconds=milliseconds)).split('.')
     if len(time) > 1:
         ms=time[1][:-3]
@@ -215,10 +224,15 @@ def ms2time(milliseconds):
     return '{:>02s}:{}:{}.{}'.format(*time[0].split(':'), ms)
 
 def search_nof_subs(read_bytes):
-    ''' Try to found last PCS into read_bytes, because PCS contains
-        video dimensions and composition number. Number of subtitles
-        is compute by composition_number//2.
-        PGS starts with 0x5047 or b'PG'
+    '''
+    Try to found last PCS into read_bytes, because PCS contains
+    video dimensions and composition number. Number of subtitles
+    is compute by composition_number//2.
+    PGS starts with 0x5047 or b'PG'
+
+    :param read_bytes: bytes
+    :return: string format like 'video_width video_height nof_comp'
+    :rtype: string
     '''
     n, maxbytes = 0, len(read_bytes)
     while n < maxbytes:
@@ -243,12 +257,29 @@ def search_nof_subs(read_bytes):
         return ''
 
 def validateRange(value):
+    '''
+    Bounding integer value to range between 0-255
+
+    :param value: integer
+    :return: bounding value
+    :rtype: int
+    '''
     if (value < 0): return 0
     if (value > 255): return 255
     return value
 
 def redChannel(y, cr):
-    # red channel from y and cr channels
+    '''
+    RGB red channel from y and Cr channels
+
+    :param y: y channel value
+    :type y: integer
+    :param cr: Cr channel value
+    :type cr: integer
+    :return: RGB red channel between 0-255
+    :rtype: integer
+    '''
+    '''standard string'''
     return validateRange(int(y+1.402*(cr-128)))
 
 def greenChannel(y, cb, cr):
@@ -297,6 +328,8 @@ def mergePalette(first, second):
 
 def readObject(image, obj_bytes):
     '''
+    Read subtitle image object
+    Details:
     C: color, L: length, 0: default color
     1 byte : CCCCCCCC
     2 bytes: 00000000 00LLLLLL
@@ -304,6 +337,11 @@ def readObject(image, obj_bytes):
     3 bytes: 00000000 10LLLLLL CCCCCCCC
     4 bytes: 00000000 11LLLLLL LLLLLLLL CCCCCCCC
     2 bytes: 00000000 00000000 end of line
+
+    :param image:
+    :param obj_type:
+    :return:
+    :rtype:
     '''
 
     drawer=Drawer(image)
@@ -506,7 +544,7 @@ webvtt_file.write('NOTE File generated with {0} {1}\n'.format(
     cliParser.prog,
     str(datetime.datetime.now()).split('.')[0]
 ))
-webvtt_file.write('NOTE Cue format: bitmap-file.png width:height:driftX:driftY\n')
+webvtt_file.write('NOTE Cue format: bitmap-file.png:width:height:driftX:driftY\n')
 while True:
     '''
     PGS: Presentation Graphic Stream
