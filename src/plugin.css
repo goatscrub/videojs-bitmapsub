@@ -29,14 +29,14 @@
   background-repeat: no-repeat;
 }
 
-.vjs-paused .bitmapsub-container,
-.vjs-user-active .bitmapsub-container,
-.vjs-user-active.vjs-fullscreen .bitmapsub-container {
+.video-js.vjs-paused .bitmapsub-container,
+.video-js.vjs-user-active .bitmapsub-container,
+.video-js.vjs-user-active.vjs-fullscreen .bitmapsub-container {
   bottom: calc(var(--control-bar-height) + var(--drift));
 }
 
-.vjs-paused.vjs-fullscreen .bitmapsub-container,
-.vjs-fullscreen .bitmapsub-container {
+.video-js.vjs-paused.vjs-fullscreen .bitmapsub-container,
+.video-js.vjs-fullscreen .bitmapsub-container {
   bottom: var(--drift);
 }
 

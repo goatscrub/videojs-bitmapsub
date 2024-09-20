@@ -71,7 +71,7 @@ class BitmapSubtitle extends VjsPlugin {
     super(player, options);
     this.player = player;
     this.options = videojs.obj.merge(_pluginDefaults, options);
-    this.dynamicStyle();
+    this.buildDynamicStyle();
 
     const cssRules = [...document.styleSheets]
       .find(css => css.ownerNode.id === `css-bitmap-${this.player.id()}`).cssRules;
@@ -87,8 +87,6 @@ class BitmapSubtitle extends VjsPlugin {
     this.player.on('loadeddata', e => {
       // Append extra components to videojs UI
       this.appendComponent();
-      this.ctrlBarHeight = this.player.controlBar.height();
-      this.bmpSubtitleContainerStyle.setProperty('--control-bar-height', `${this.ctrlBarHeight}px`);
       this.updateMenu();
       // At startup underlying this.currentSubtitle is not loaded yet
       this.scaleBmpSubtitleContainer();
@@ -96,6 +94,10 @@ class BitmapSubtitle extends VjsPlugin {
     // Append listener for video size changes
     this.player.on('fullscreenchange', this.adjustSubtitlePosition.bind(this));
     this.player.on('playerresize', this.scaleBmpSubtitleContainer.bind(this));
+    this.player.one('play', e => {
+      this.ctrlBarHeight = this.player.controlBar.height();
+      this.bmpSubtitleContainerStyle.setProperty('--control-bar-height', `${this.ctrlBarHeight}px`);
+    });
   }
 
   /**
@@ -103,7 +105,7 @@ class BitmapSubtitle extends VjsPlugin {
    *
    * @return {Object} - DOM style element
    *  */
-  dynamicStyle() {
+  buildDynamicStyle() {
     const style = document.createElement('style');
     const id = this.player.id();
 
@@ -197,7 +199,7 @@ class BitmapSubtitle extends VjsPlugin {
    *
    * @param {string} bitmapVariation - "pgssub" or "vobsub"
    */
-  bitmapSubContainerClass(bitmapVariation) {
+  setBmpSubContainerClass(bitmapVariation) {
     if (bitmapVariation === 'pgssub') {
       this.bmpSubContainer.removeClass('vobsub');
       this.bmpSubContainer.addClass('pgssub');
@@ -235,14 +237,14 @@ class BitmapSubtitle extends VjsPlugin {
         this.currentSubtitle.track = track;
         this.selectItem(item);
         this.listenCueChange();
-        this.bitmapSubContainerClass(bitmapVariation);
+        this.setBmpSubContainerClass(bitmapVariation);
       } else {
         track.mode = 'disabled';
       }
       item.handleClick = () => {
         this.selectItem(item);
         this.changeTrack(item.track.id);
-        this.bitmapSubContainerClass(bitmapVariation);
+        this.setBmpSubContainerClass(bitmapVariation);
       };
       // append item to subtitle menu
       items.push(item);
@@ -266,7 +268,7 @@ class BitmapSubtitle extends VjsPlugin {
     const scaleSize = (this.player.textTrackDisplay.dimension('width') / this.currentSubtitle.track.bitmapsub.width).toFixed(2);
 
     this.bmpSubContainer.el().style.scale = `${scaleSize}`;
-    // this.adjustSubtitlePosition();
+    this.adjustSubtitlePosition();
   }
 
   /**
@@ -358,7 +360,6 @@ class BitmapSubtitle extends VjsPlugin {
     let drift = subtitleBottomMargin;
 
     if (this.player.isFullscreen()) {
-      console.log('fullscreen detected');
       const textTrackDisplayY = Math.round(this.player.textTrackDisplay.getPositions().boundingClientRect.y);
 
       if (textTrackDisplayY < this.ctrlBarHeight) {
