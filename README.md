@@ -140,6 +140,9 @@ python.1.vobsub.png 73:22:0:0
 
 [...]
 ```
+## [WIP]
+- settings panel
+- moving packing script to RUST
 
 ## Crédits & inspiration
 - [Presentation Graphic Stream (SUP files) BluRay Subtitle Format — Scorpius](https://blog.thescorpius.com/index.php/2017/07/15/presentation-graphic-stream-sup-files-bluray-subtitle-format/)
