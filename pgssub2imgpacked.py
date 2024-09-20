@@ -12,15 +12,15 @@ from collections import namedtuple
 
 cliParser=argparse.ArgumentParser(
     prog=os.path.basename(sys.argv[0]),
-    description='PGS .sup file reader',
+    description='Read PGS (.sup) file and generate pack of subtitles images. You can optionnaly define number of rows and columns.',
     epilog='have bien le fun'
 )
 cliParser.add_argument('filename')
-cliParser.add_argument('-c', '--columns', action='store', default=4, type=int)
-cliParser.add_argument('-d', '--debug', action='store_true', default='store_false')
-cliParser.add_argument('-r', '--rows', action='store', default=128, type=int)
-cliParser.add_argument('-l', '--limit', action='store', default=9999, type=int)
-cliParser.add_argument('-t', '--targetDirectory', action='store', default=os.getcwd(), type=str)
+cliParser.add_argument('-c', '--columns', action='store', default=4, type=int, help='number of columns within image pack, default: 4')
+cliParser.add_argument('-d', '--debug', action='store_true', default='store_false', help='temporary files are not remove')
+cliParser.add_argument('-r', '--rows', action='store', default=64, type=int, help='number of rows within image pack, default: 64')
+cliParser.add_argument('-l', '--limit', action='store', default=999999, type=int, help='limit number of subtitle to be processed, for tests purposes')
+cliParser.add_argument('-t', '--targetDirectory', action='store', default=os.getcwd(), type=str, help='folder destination for files generated')
 cliArgs=cliParser.parse_args()
 
 enable_debug=cliArgs.debug
@@ -612,7 +612,6 @@ while True:
 print(f'{LINE_CLEAR}\r{pack.count} image saved.')
 webvtt_file.close()
 files=[webvtt_path]
-print(f'{webvtt_path} created.')
 pack.endPack()
 
 if not pack.count:
