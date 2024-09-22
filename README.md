@@ -1,8 +1,8 @@
 # videojs-bitmapsub
 
 This videojs plugin helps you displaying bitmap subtitle type, like vobsub (DVD) or pgssub (Blueray), into video.js player as images.  
-![vobsub](examples/samples/screenshot/vobsub.png)
-![pgssub](examples/samples/screenshot/pgssub.png)
+![vobsub](docs/samples/screenshot/vobsub.png)
+![pgssub](docs/samples/screenshot/pgssub.png)
 ## Table of Contents
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
