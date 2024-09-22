@@ -37,7 +37,7 @@ For DVD subtitles, two files are needed, a `.vob` and a `.idx`. With vobsub2imgp
 It's an ugly script wrapper arround `sub2png` executable. (Why in PHP ?)  
 This script depend on `subp2png` binary and `bash` shell or compatible.
 ```sh
-$ ./vob2imgpacked.php -i tmp/montypython/python.sub -o tmp/montypython/
+$ ./vob2imgpacked.php -i tmp/sample_vobsub_file.sub -o web_folder/
 
 $ ./vob2imgpacked.php -h
 vobsub2imgpacked.php
@@ -121,10 +121,10 @@ So to be recognized correctly, your label must match format: `subtitle_type:vide
 #### Examples
 ```html
 <!-- DVD -->
-<track default src="/webvtt-path/file.eng.vtt" kind="metadata" label="pgssub:1920:english" language="eng" />
+<track kind="metadata" label="pgssub:1920:english" language="eng" src="/webvtt-path/file.eng.vtt" />
 
 <!-- Bluray -->
-<track src="/webvtt-path/file.fre.vtt" kind="metadata" label="pgssub:1920:français" language="fre" />
+<track kind="metadata" label="pgssub:1920:français" language="fre" src="/webvtt-path/file.fre.vtt" />
 ```
 
 ## What metadata track generated contains
@@ -143,7 +143,7 @@ python.1.vobsub.png 73:22:0:0
 ```
 ## [WIP]
 - settings panel
-- moving packing script to RUST
+- moving packing script to RUST and handle both pgssub or vobsub
 - append bitmap subtitles into subscapsmenu
 - menu icon ?
 
