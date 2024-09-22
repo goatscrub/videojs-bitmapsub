@@ -1,23 +1,21 @@
 # videojs-bitmapsub
 
 This videojs plugin helps you displaying bitmap subtitle type, like vobsub (DVD) or pgssub (Blueray), into video.js player as images.
-
+![vobsub](docs/vobsub.png)
+![pgssub](docs/pgssub.png)
 ## Table of Contents
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [How it works](#how-it-works)
-- [Usage](#usage)
-  - [Prepare your data](#prepare-your-data)
-    - [DVD .vob and .idx files — vob2imgpacked.php](#dvd-vob-and-idx-files--vob2imgpackedphp)
-    - [Bluray pgssub](#bluray-pgssub)
   - [JS & CSS](#js--css)
   - [Setting up plugin](#setting-up-plugin)
     - [Plugin options and defaults values](#plugin-options-and-defaults-values)
   - [Append metadata tracks](#append-metadata-tracks)
     - [Examples](#examples)
 - [What metadata track generated contains](#what-metadata-track-generated-contains)
+- [[WIP]](#wip)
 - [Crédits & inspiration](#cr%C3%A9dits--inspiration)
 - [License](#license)
 
@@ -36,11 +34,12 @@ This repository provide all you need to:
 Generate subtitles images packs
 #### DVD .vob and .idx files — vob2imgpacked.php
 For DVD subtitles, two files are needed, a `.vob` and a `.idx`. With vobsub2imgpacked.php you can specify one of them, second one is automaticaly find if they have same base name, only extension differs, eg: `vobsub.vob` and `vobsub.idx`.  
-It's an ugly script wrapper arround `sub2png` executable. (Why in PHP ?)
-```
-user@host> ./vob2imgpacked.php -i tmp/montypython/python.sub -o tmp/montypython/
+It's an ugly script wrapper arround `sub2png` executable. (Why in PHP ?)  
+This script depend on `subp2png` binary and `bash` shell or compatible.
+```sh
+$ ./vob2imgpacked.php -i tmp/montypython/python.sub -o tmp/montypython/
 
-./vob2imgpacked.php -h
+$ ./vob2imgpacked.php -h
 vobsub2imgpacked.php
 
  -c    Number of columns, default 4.
@@ -53,11 +52,11 @@ vobsub2imgpacked.php
 #### Bluray pgssub
 Python script, relatively slow.  
 With default row and column values, pack image can easily have a resolution of `4000 × 6500` pixels.
-```
-user@host> ./pgssub2imgpacked.py /tmp/sample.fre.sup -t bitmap-subtitle/
+```sh
+$ ./pgssub2imgpacked.py /tmp/sample.fre.sup -t bitmap-subtitle/
 1823 image saved.
 
-user@host> ./pgssub2imgpacked.py -h
+$ ./pgssub2imgpacked.py -h
 
 usage: pgssub2imgpacked.py [-h] [-c COLUMNS] [-d] [-r ROWS] [-l LIMIT] [-t TARGETDIRECTORY] filename
 
@@ -79,14 +78,15 @@ options:
 ```
 ### JS & CSS
 Append CSS and javascript into your document.
-```
+```html
 <link href="//path-plugin/dist/videojs-bitmapsub.min.css" rel="stylesheet" />
 <script src="//path-plugin/dist/videojs-bitmapsub.js"></script>
 ```
 ### Setting up plugin
 Two video.js classical ways, at video.js player creation:
-```
+```js
 <script type="text/javascript">
+
 // On player creation
 const player_1 = videojs('sample', {
   plugins: {
@@ -98,6 +98,7 @@ const player_1 = videojs('sample', {
 // Passing options directly to plugin
 const player_2 = videojs('sample')
 player.bitmapSubtitle({ pathPrefix: '/images-subtitles/' })
+
 </script>
 ```
 #### Plugin options and defaults values
@@ -118,11 +119,11 @@ So to be recognized correctly, your label must match format: `subtitle_type:vide
 |`pgssub`|`label="pgssub:1920:français"`|Bluray source with video image width 1920px and label text `français`|
 
 #### Examples
-```
+```html
 <!-- DVD -->
 <track default src="/webvtt-path/file.eng.vtt" kind="metadata" label="pgssub:1920:english" language="eng" />
 
-<!-- bluray -->
+<!-- Bluray -->
 <track src="/webvtt-path/file.fre.vtt" kind="metadata" label="pgssub:1920:français" language="fre" />
 ```
 
@@ -143,6 +144,8 @@ python.1.vobsub.png 73:22:0:0
 ## [WIP]
 - settings panel
 - moving packing script to RUST
+- append bitmap subtitles into subscapsmenu
+- menu icon ?
 
 ## Crédits & inspiration
 - [Presentation Graphic Stream (SUP files) BluRay Subtitle Format — Scorpius](https://blog.thescorpius.com/index.php/2017/07/15/presentation-graphic-stream-sup-files-bluray-subtitle-format/)

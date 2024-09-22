@@ -13,7 +13,7 @@ from collections import namedtuple
 cliParser=argparse.ArgumentParser(
     prog=os.path.basename(sys.argv[0]),
     description='Read PGS (.sup) file and generate pack of subtitles images. You can optionnaly define number of rows and columns.',
-    epilog='have bien le fun'
+    epilog='Have bien le fun.'
 )
 cliParser.add_argument('filename')
 cliParser.add_argument('-c', '--columns', action='store', default=4, type=int, help='number of columns within image pack, default: 4')
@@ -539,7 +539,7 @@ pack=PackImages(supfile_info.nof_subs, prefix=pack_prefix, rows=rows, columns=co
 webvtt_path = os.path.join(pack.tmpd.name, webvtt_filename)
 webvtt_file=open(webvtt_path, 'w')
 webvtt_file.write(f'WEBVTT - {basename}\n\n')
-webvtt_file.write('NOTE Video size: {}\n')
+webvtt_file.write('NOTE Video size: {}x{}\n'.format(supfile_info.v_width, supfile_info.v_height))
 webvtt_file.write('NOTE File generated with {0} {1}\n'.format(
     cliParser.prog,
     str(datetime.datetime.now()).split('.')[0]

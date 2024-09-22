@@ -3,7 +3,7 @@
 // TODO: append debug option
 define('VERSION', '0.9.2');
 $prog = basename($argv[0]);
-$options = getopt('c:dhi:l:o:v');
+$options = getopt('c:dhi:r:o:v');
 $format = " -%s    %s\n";
 if (isset($options['h']) && $options['h'] === false) {
     echo $prog . "\n\n";
@@ -12,7 +12,7 @@ if (isset($options['h']) && $options['h'] === false) {
         // 'd' => "Debug mode, don't remove generated files.",
         'h' => 'This help description.',
         'i' => 'Input vobsub file, .sub or .idx extension',
-        'l' => 'Number of lines, default 64.',
+        'r' => 'Number of rows, default 64.',
         'o' => 'Output directory',
         'v' => 'Print program version.',
     ];
@@ -47,12 +47,20 @@ if (isset($options['c'])) {
         exit(1);
     }
 }
-// default number of lines
-$lines = 64;
-if (isset($options['l'])) {
-    $lines = intval($options['l']);
-    if ($lines <= 0) {
+// default number of rows
+$rows = 64;
+if (isset($options['r'])) {
+    $rows = intval($options['r']);
+    if ($rows <= 0) {
         echo "Line option must be an integer and greater than 0, abort.\n";
+        exit(1);
+    }
+}
+
+function shellExec($cmd) {
+    if (passthru($cmd . ' 1>/dev/null') != NULL) {
+        echo $cmd . "\n";
+        echo "Command execution failed, abort.\n";
         exit(1);
     }
 }
@@ -130,10 +138,10 @@ if (file_exists($tmpFolderName)) {
 // generate png files from .vob and .idx files
 $pngBaseFilesPath = implode(DIRECTORY_SEPARATOR, [$tmpFolderName, $pathInfo['filename']]);
 $pngBaseFilesPath = str_replace(DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR, DIRECTORY_SEPARATOR, $pngBaseFilesPath);
-$subp2pngCmd = sprintf('subp2png -n %s -o %s 1>/dev/null', $baseFilenamePath, $pngBaseFilesPath);
+$subp2pngCmd = sprintf('subp2png -n %s -o %s', $baseFilenamePath, $pngBaseFilesPath);
 // generate vobsub images
 echo "Generate vobsub images…\n";
-passthru($subp2pngCmd);
+shellExec($subp2pngCmd);
 
 function idxMetadata() {
     // count number of subtitle available in .idx file
@@ -159,13 +167,13 @@ function fileRangePack($totalItems, $packBy, $cmd) {
     $n_loop = 1;
     while ($n_loop <= $min_packs) {
         // second cmd pass, set start, end and loop values
-        passthru(sprintf($cmd, (($n_loop - 1) * $packBy) + 1, $n_loop * $packBy, $n_loop));
+        shellExec(sprintf($cmd, (($n_loop - 1) * $packBy) + 1, $n_loop * $packBy, $n_loop));
         $n_loop++;
     }
     // check if extra pack needed with the rest of totalItems
     $rest = $totalItems % $packBy;
     if ($rest > 0) {
-        passthru(sprintf($cmd, $totalItems - $rest + 1, $totalItems, $n_loop));
+        shellExec(sprintf($cmd, $totalItems - $rest + 1, $totalItems, $n_loop));
         $n_loop++;
     }
     return $n_loop - 1;
@@ -176,13 +184,13 @@ $idxMeta = idxMetadata();
 // filter images
 echo "Filter images…\n";
 for ($n = 1; $n <= $n_of_subs; $n++) {
-    passthru(sprintf("mogrify -transparent 'rgb(255,255,255)' -trim %s%04d.png", $pngBaseFilesPath, $n));
+    shellExec(sprintf("mogrify -transparent 'rgb(255,255,255)' -trim %s%04d.png", $pngBaseFilesPath, $n));
 }
 
 // temporary packing, create columns of items
 // compute zero leading pad
 echo "Pack columns…\n";
-$padding_generated = strlen(ceil($n_of_subs / $lines));
+$padding_generated = strlen(ceil($n_of_subs / $rows));
 $cmd = sprintf(
     "/bin/bash -c \"convert %s{%%04d..%%04d}.png -append %s.%%0%dd.tmp.png\"",
     $pngBaseFilesPath,
@@ -190,7 +198,7 @@ $cmd = sprintf(
     $padding_generated
 );
 // return number of files generated
-$generated_files = fileRangePack($n_of_subs, $lines, $cmd);
+$generated_files = fileRangePack($n_of_subs, $rows, $cmd);
 // compute zero leading pad for final stage files
 echo "Pack final file…\n";
 $padding_final = strlen(ceil($generated_files / $columns));
@@ -233,7 +241,7 @@ foreach ($subtitles as $subtitle) {
     $filename = sprintf(
         '%s.%0' . $padding_final . 'd.vobsub.png',
         $pathInfo['filename'],
-        ceil((($imageCounter + 1) / $lines) / $columns)
+        ceil((($imageCounter + 1) / $rows) / $columns)
     );
     $imagick = new Imagick((string)$subtitle->image);
     [$width, $height] = [$imagick->getImageWidth(), $imagick->getImageHeight()];
@@ -241,14 +249,14 @@ foreach ($subtitles as $subtitle) {
     // each image file contains max_rows*max_columns
     // current column finished (reset y), add new column (update x with the previous largest one)
     // reset drift Y value and update drift X
-    if (($imageCounter > 0) && ($imageCounter % $lines) == 0) {
+    if (($imageCounter > 0) && ($imageCounter % $rows) == 0) {
         $drift_y = 0;
         $drift_x += $largest;
         $largest = 0;
     }
     // changing file because n of image = max_columns*max_rows
     // reset drift X value
-    if (($imageCounter > 0) && ($imageCounter % ($lines * $columns) == 0)) {
+    if (($imageCounter > 0) && ($imageCounter % ($rows * $columns) == 0)) {
         $drift_x = 0;
         $largest = 0;
     }
@@ -273,10 +281,10 @@ foreach ($subtitles as $subtitle) {
 fclose($vttHandle);
 // move generated vobsub files into current directory
 $cmd = sprintf('mv %s*.vobsub.png %s', $pngBaseFilesPath, $opt_output);
-passthru($cmd);
+shellExec($cmd);
 // remove temporary directory and files
 // test is completely useless but make me less anxious
 echo "Cleaning up temporary files…\n";
 if (str_starts_with($tmpFolderName, '/tmp/' . $prog . '-')) {
-    passthru(sprintf('rm -rf %s', $tmpFolderName));
+    shellExec(sprintf('rm -rf %s', $tmpFolderName));
 }

@@ -23,7 +23,7 @@
     }
 
     h2 {
-      border-bottom: 2px solid #663399c8;
+      border-bottom: 2px solid #008000aa;
     }
 
     section {
@@ -38,54 +38,41 @@
     <section>
       <h2>DVD vobsub:</h2>
       <video id="vobsub" class="video-js vjs-default-skin" controls>
-        <source src="/tmp/montypython/python.mp4" type="video/mp4" />
-        <track default src="/tmp/montypython/python.vtt" kind="metadata" label="vobsub:720:english" language="en" />
+        <source src="/samples/sample1.mp4" type="video/mp4" />
+        <track default src="/samples/vobsub.fre.vtt" kind="metadata" label="vobsub:1920:français" language="fr" />
       </video>
     </section>
 
     <section>
       <h2>Bluray pgssub:</h2>
       <video id="pgssub" class="video-js vjs-default-skin" controls>
-        <source src="/tmp/darkwaters/darkwaters.mp4" type="video/mp4" />
-        <track default src="/tmp/darkwaters/darkwaters.eng.vtt" kind="metadata" label="pgssub:1920:english" language="en" />
-        <track src="/tmp/darkwaters/darkwaters.fre.vtt" kind="metadata" label="pgssub:1920:français" language="fr" />
-        <track src="/tmp/fake.vtt" kind="metadata" id="bitmapsub-test-only" label="pgssub:360:test-only" language="fr" />
+        <source src="/samples/sample2.mp4" type="video/mp4" />
+        <track src="/samples/pgssub.eng.vtt" kind="metadata" label="pgssub:1920:english" language="en" />
+        <track default src="/samples/pgssub.fre.vtt" kind="metadata" label="pgssub:1920:français" language="fr" />
       </video>
     </section>
 
     <script>
-      // vobsub
       const commonOptions = {
         fluid: true,
         controls: true,
-        controlBar: { pictureInPictureToggle: false },
-        plugins: {
-          hotkeys: { alwaysCaptureHotkeys: true },
-        }
       }
+
+      // vobsub
       const vjsVobsubOpt = {
         ...commonOptions,
-        muted: true,
-        // autoplay: true,
       };
       const player_vobsub = videojs('vobsub', vjsVobsubOpt);
-      window.vplayer = player_vobsub
-
-      player_vobsub.bitmapSubtitle({ pathPrefix: '/tmp/montypython/' })
-      player_vobsub.currentTime(60 * 12);
+      player_vobsub.bitmapSubtitle({ pathPrefix: '/samples/' })
 
       // subp
       const vjsOptions = {
         ...commonOptions,
-        muted: true,
-        // autoplay: true,
         plugins: {
-          bitmapSubtitle: { pathPrefix: '/tmp/darkwaters/' },
+          bitmapSubtitle: { pathPrefix: '/samples/' },
         }
       };
       const player = videojs('pgssub', vjsOptions);
-      window.player = player
-      player.currentTime(60 * 53);
     </script>
   </main>
 </body>
