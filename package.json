@@ -36,7 +36,7 @@
     "watch:js": "npm run build:js -- -w",
     "preview": "vite preview",
     "prepublishOnly": "npm-run-all build-prod && vjsverify --verbose --skip-es-check",
-    "bsproxy": "${MY_WORKFLOW}/common/local-server bsalone"
+    "bs": "browser-sync start -c examples/browser-sync.config.js"
   },
   "devDependencies": {
     "@babel/cli": "^7.14.3",
@@ -55,8 +55,8 @@
     "videojs-generate-rollup-config": "~7.0.1",
     "videojs-generator-verify": "~4.0.0",
     "videojs-hotkeys": "^0.2.28",
-    "videojs-standard": "^9.0.0",
-    "yo": "^5.0.0"
+    "videojs-languages": "^2.0.0",
+    "videojs-standard": "^9.0.0"
   },
   "dependencies": {
     "global": "^4.4.0",
