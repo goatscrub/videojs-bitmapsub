@@ -1,4 +1,6 @@
-import { version } from '../package.json';
+import videojs from 'video.js';
+import { window, document } from 'global';
+import { version as VERSION } from '../package.json';
 const VjsComponent = videojs.getComponent('Component');
 const VjsPlugin = videojs.getPlugin('plugin');
 const VjsMenuButton = videojs.getComponent('MenuButton');
@@ -382,7 +384,7 @@ class BitmapSubtitle extends VjsPlugin {
   }
 }
 
-BitmapSubtitle.VERSION = version;
+BitmapSubtitle.VERSION = VERSION;
 videojs.registerComponent('bitmapSubtitleContainer', BitmapSubtitleContainer);
 videojs.registerComponent('bitmapMenuButton', BitmapMenuButton);
 videojs.registerPlugin('bitmapSubtitle', BitmapSubtitle);
