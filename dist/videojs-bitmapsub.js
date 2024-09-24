@@ -1,17 +1,21 @@
 /*! @name videojs-bitmapsub @version 1.0.0 @license MIT */
 (function (global, factory) {
-  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
-  typeof define === 'function' && define.amd ? define(factory) :
-  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.videojsBitmapsub = factory());
-}(this, (function () { 'use strict';
+  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('video.js')) :
+  typeof define === 'function' && define.amd ? define(['video.js'], factory) :
+  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.videojsBitmapsub = factory(global.videojs));
+}(this, (function (videojs) { 'use strict';
+
+  function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
+
+  var videojs__default = /*#__PURE__*/_interopDefaultLegacy(videojs);
 
   var version = "1.0.0";
 
-  const VjsComponent = videojs.getComponent('Component');
-  const VjsPlugin = videojs.getPlugin('plugin');
-  const VjsMenuButton = videojs.getComponent('MenuButton');
-  const VjsMenuItem = videojs.getComponent('MenuItem');
-  const VjsTextTrackMenuItem = videojs.getComponent('TextTrackMenuItem');
+  const VjsComponent = videojs__default['default'].getComponent('Component');
+  const VjsPlugin = videojs__default['default'].getPlugin('plugin');
+  const VjsMenuButton = videojs__default['default'].getComponent('MenuButton');
+  const VjsMenuItem = videojs__default['default'].getComponent('MenuItem');
+  const VjsTextTrackMenuItem = videojs__default['default'].getComponent('TextTrackMenuItem');
   /**
    * Bitmap Subtitle Menu Button
    */
@@ -50,10 +54,10 @@
      * @return {DOM} container - bitmap subtitle container
      */
     createEl() {
-      const container = videojs.dom.createEl('div', {
+      const container = videojs__default['default'].dom.createEl('div', {
         className: 'bitmapsub-container'
       });
-      const subtitle = videojs.dom.createEl('div', {
+      const subtitle = videojs__default['default'].dom.createEl('div', {
         className: 'bitmap-subtitle'
       });
       container.appendChild(subtitle);
@@ -86,9 +90,9 @@
       };
       super(player, options);
       this.player = player;
-      this.options = videojs.obj.merge(_pluginDefaults, options);
+      this.options = videojs__default['default'].obj.merge(_pluginDefaults, options);
       this.buildDynamicStyle();
-      const cssRules = [...document.styleSheets].find(css => css.ownerNode.id === `css-bitmap-${this.player.id()}`).cssRules;
+      const cssRules = [...window.document.styleSheets].find(css => css.ownerNode.id === `css-bitmap-${this.player.id()}`).cssRules;
       this.bmpSubtitleContainerStyle = [...cssRules].find(rule => rule.selectorText === `#${this.player.id()} .bitmapsub-container`).style; // Handle only bitmap subtitle tracks
 
       this.bitmapTracks = []; // Save current subtitle track with associated event listener state
@@ -122,11 +126,11 @@
 
 
     buildDynamicStyle() {
-      const style = document.createElement('style');
+      const style = window.document.createElement('style');
       const id = this.player.id();
       style.id = `css-bitmap-${id}`;
       style.textContent = `#${id} .bitmapsub-container{}`;
-      document.head.appendChild(style);
+      window.document.head.appendChild(style);
       return style;
     }
     /**
@@ -408,16 +412,16 @@
       } // Device aspect ration must be applied
 
 
-      drift = drift * window.devicePixelRatio;
+      drift = drift * window.window.devicePixelRatio;
       this.bmpSubtitleContainerStyle.setProperty('--drift', `${drift}px`);
     }
 
   }
 
   BitmapSubtitle.VERSION = version;
-  videojs.registerComponent('bitmapSubtitleContainer', BitmapSubtitleContainer);
-  videojs.registerComponent('bitmapMenuButton', BitmapMenuButton);
-  videojs.registerPlugin('bitmapSubtitle', BitmapSubtitle);
+  videojs__default['default'].registerComponent('bitmapSubtitleContainer', BitmapSubtitleContainer);
+  videojs__default['default'].registerComponent('bitmapMenuButton', BitmapMenuButton);
+  videojs__default['default'].registerPlugin('bitmapSubtitle', BitmapSubtitle);
 
   return BitmapSubtitle;
 

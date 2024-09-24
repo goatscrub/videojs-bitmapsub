@@ -6,8 +6,8 @@
   <title>videojs-bitmapsub Demo</title>
   <link href="https://unpkg.com/video.js/dist/video-js.min.css" rel="stylesheet">
   <script src="https://unpkg.com/video.js/dist/video.min.js"></script>
-  <link href="../dist/videojs-bitmapsub.css" rel="stylesheet" />
-  <script src="../dist/videojs-bitmapsub.min.js"></script>
+  <link href="/dist/videojs-bitmapsub.css" rel="stylesheet" />
+  <script src="/dist/videojs-bitmapsub.min.js"></script>
   <style>
     body {
       margin: 0;
@@ -37,17 +37,17 @@
     <section>
       <h2>DVD vobsub:</h2>
       <video id="vobsub" class="video-js vjs-default-skin" controls>
-        <source src="/examples/samples/sample1.mp4" type="video/mp4" />
-        <track default src="/examples/samples/vobsub.fre.vtt" kind="metadata" label="vobsub:1920:français" language="fr" />
+        <source src="/docs/samples/sample1.mp4" type="video/mp4" />
+        <track default src="/docs/samples/vobsub.fre.vtt" kind="metadata" label="vobsub:1920:français" language="fr" />
       </video>
     </section>
 
     <section>
       <h2>Bluray pgssub:</h2>
       <video id="pgssub" class="video-js vjs-default-skin" controls>
-        <source src="/examples/samples/sample2.mp4" type="video/mp4" />
-        <track src="/examples/samples/pgssub.eng.vtt" kind="metadata" label="pgssub:1920:english" language="en" />
-        <track default src="/examples/samples/pgssub.fre.vtt" kind="metadata" label="pgssub:1920:français" language="fr" />
+        <source src="/docs/samples/sample2.mp4" type="video/mp4" />
+        <track src="/docs/samples/pgssub.eng.vtt" kind="metadata" label="pgssub:1920:english" language="en" />
+        <track default src="/docs/samples/pgssub.fre.vtt" kind="metadata" label="pgssub:1920:français" language="fr" />
       </video>
     </section>
 
@@ -62,13 +62,13 @@
         ...commonOptions,
       };
       const player_vobsub = videojs('vobsub', vjsVobsubOpt);
-      player_vobsub.bitmapSubtitle({ pathPrefix: '/examples/samples/' })
+      player_vobsub.bitmapSubtitle({ pathPrefix: '/docs/samples/' })
 
       // subp
       const vjsOptions = {
         ...commonOptions,
         plugins: {
-          bitmapSubtitle: { pathPrefix: '/examples/samples/' },
+          bitmapSubtitle: { pathPrefix: '/docs/samples/' },
         }
       };
       const player = videojs('pgssub', vjsOptions);
