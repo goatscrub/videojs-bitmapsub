@@ -37,17 +37,17 @@
     <section>
       <h2>DVD vobsub:</h2>
       <video id="vobsub" class="video-js vjs-default-skin" controls>
-        <source src="/samples/sample1.mp4" type="video/mp4" />
-        <track default src="/samples/vobsub.fre.vtt" kind="metadata" label="vobsub:1920:français" language="fr" />
+        <source src="/videojs-bitmapsub/samples/sample1.mp4" type="video/mp4" />
+        <track default src="/videojs-bitmapsub/samples/vobsub.fre.vtt" kind="metadata" label="vobsub:1920:français" language="fr" />
       </video>
     </section>
 
     <section>
       <h2>Bluray pgssub:</h2>
       <video id="pgssub" class="video-js vjs-default-skin" controls>
-        <source src="/samples/sample2.mp4" type="video/mp4" />
-        <track src="/samples/pgssub.eng.vtt" kind="metadata" label="pgssub:1920:english" language="en" />
-        <track default src="/samples/pgssub.fre.vtt" kind="metadata" label="pgssub:1920:français" language="fr" />
+        <source src="/videojs-bitmapsub/samples/sample2.mp4" type="video/mp4" />
+        <track src="/videojs-bitmapsub/samples/pgssub.eng.vtt" kind="metadata" label="pgssub:1920:english" language="en" />
+        <track default src="/videojs-bitmapsub/samples/pgssub.fre.vtt" kind="metadata" label="pgssub:1920:français" language="fr" />
       </video>
     </section>
 
@@ -62,13 +62,13 @@
         ...commonOptions,
       };
       const player_vobsub = videojs('vobsub', vjsVobsubOpt);
-      player_vobsub.bitmapSubtitle({ pathPrefix: '/samples/' })
+      player_vobsub.bitmapSubtitle({ pathPrefix: '/videojs-bitmapsub/samples/' })
 
       // subp
       const vjsOptions = {
         ...commonOptions,
         plugins: {
-          bitmapSubtitle: { pathPrefix: '/samples/' },
+          bitmapSubtitle: { pathPrefix: '/videojs-bitmapsub/samples/' },
         }
       };
       const player = videojs('pgssub', vjsOptions);
