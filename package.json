@@ -34,15 +34,15 @@
     "watch:css": "npm run build:css -- -w",
     "watch:es": "npm run build:es -- -w",
     "watch:js": "npm run build:js -- -w",
-    "preview": "vite preview",
     "prepublishOnly": "npm-run-all build-prod && vjsverify --verbose --skip-es-check",
-    "bs": "browser-sync start -c examples/browser-sync.config.js"
+    "bs": "browser-sync start -c docs/browser-sync.config.js"
   },
   "devDependencies": {
     "@babel/cli": "^7.14.3",
     "@babel/runtime": "^7.14.0",
     "@videojs/babel-config": "^0.2.0",
     "@videojs/generator-helpers": "~3.0.0",
+    "eslint-plugin-qunit": "^8.1.2",
     "generator-videojs-plugin": "^9.0.0",
     "jsdoc": "~3.6.7",
     "karma": "^6.3.2",
