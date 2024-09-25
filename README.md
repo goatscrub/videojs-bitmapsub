@@ -1,6 +1,6 @@
 # videojs-bitmapsub
 
-This videojs plugin helps you displaying bitmap subtitle type, like vobsub (DVD) or pgssub (Blueray), into video.js player as images.  
+A video.js plugin helps you displaying bitmap subtitle type as image, like vobsub (DVD) or pgssub (Bluray).
 
 ![vobsub](docs/samples/screenshot/vobsub.png)  
   
@@ -34,16 +34,16 @@ This repository provide all you need to:
 > __**NOTE:**__ No OCR (Optical Character Recognition) involved into this process. Again, bitmap subtitles are displayed as images, and they are packed into bigger file only to avoid HTTP traffic, but it's not mandatory.
 ## Usage
 ### Prepare your data
-Generate subtitles images packs
-#### DVD .vob and .idx files — vob2imgpacked.php
-For DVD subtitles, two files are needed, a `.vob` and a `.idx`. With vobsub2imgpacked.php you can specify one of them, second one is automaticaly find if they have same base name, only extension differs, eg: `vobsub.vob` and `vobsub.idx`.  
+Generate subtitles images packs with corresponding script from scripts folder.
+#### DVD .vob and .idx files — scripts/vobsubpack.php
+For DVD subtitles, two files are needed, a `.vob` and a `.idx`. With `script/vobsubpack.php` you can specify one of them, second one is automaticaly find if they have same base name, only extension differs, eg: `vobsub.vob` and `vobsub.idx`.  
 It's an ugly script wrapper arround `sub2png` executable. (Why in PHP ?)  
 This script depend on `subp2png` binary and `bash` shell or compatible.
 ```sh
-$ ./vob2imgpacked.php -i tmp/sample_vobsub_file.sub -o web_folder/
+$ ./vobsubpack.php -i tmp/sample_vobsub_file.sub -o web_folder/
 
-$ ./vob2imgpacked.php -h
-vobsub2imgpacked.php
+$ ./vobsubpack.php -h
+vobsubpack.php
 
  -c    Number of columns, default 4.
  -h    This help description.
@@ -52,16 +52,16 @@ vobsub2imgpacked.php
  -o    Output directory
  -v    Print program version.
 ```
-#### Bluray pgssub
+#### Bluray pgssub — pgssubpack.py
 Python script, relatively slow.  
 With default row and column values, pack image can easily have a resolution of `4000 × 6500` pixels.
 ```sh
-$ ./pgssub2imgpacked.py /tmp/sample.fre.sup -t bitmap-subtitle/
+$ ./pgssubpack.py /tmp/sample.fre.sup -t bitmap-subtitle/
 1823 image saved.
 
-$ ./pgssub2imgpacked.py -h
+$ ./pgssubpack.py -h
 
-usage: pgssub2imgpacked.py [-h] [-c COLUMNS] [-d] [-r ROWS] [-l LIMIT] [-t TARGETDIRECTORY] filename
+usage: pgssubpack.py [-h] [-c COLUMNS] [-d] [-r ROWS] [-l LIMIT] [-t TARGETDIRECTORY] filename
 
 Read PGS (.sup) file and generate pack of subtitles images. You can optionnaly define number of rows and columns.
 
@@ -88,21 +88,17 @@ Append CSS and javascript into your document.
 ### Setting up plugin
 Two video.js classical ways, at video.js player creation:
 ```js
-<script type="text/javascript">
-
 // On player creation
-const player_1 = videojs('sample', {
+const player1 = videojs('sample', {
   plugins: {
     bitmapSubtitle: { pathPrefix: '/images-subtitles/' }
-    }
   }
 });
 
 // Passing options directly to plugin
-const player_2 = videojs('sample')
-player.bitmapSubtitle({ pathPrefix: '/images-subtitles/' })
+const player2 = videojs('sample');
 
-</script>
+player2.bitmapSubtitle({ pathPrefix: '/images-subtitles/' });
 ```
 #### Plugin options and defaults values
 
@@ -135,7 +131,7 @@ So to be recognized correctly, your label must match format: `subtitle_type:vide
 WEBVTT - python.sub
 
 NOTE Video size: 720x576
-NOTE File generated with vob2imgpacked.php 2024-09-05 07:09:37
+NOTE File generated with vobsubpack.php 2024-09-05 07:09:37
 NOTE Cue format: bitmap-file.png:width:height:driftX:driftY
 
 1
