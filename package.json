@@ -13,12 +13,9 @@
     "build": "npm-run-all -s clean -p build:*",
     "build-prod": "cross-env-shell NO_TEST_BUNDLE=1 'npm run build'",
     "build-test": "cross-env-shell TEST_BUNDLE_ONLY=1 'npm run build'",
-    "build:cjs": "babel-config-cjs -d ./cjs ./src",
     "build:css": "postcss -o dist/videojs-bitmapsub.css --config scripts/postcss.config.js src/plugin.css",
-    "build:es": "babel-config-es -d ./es ./src",
     "build:js": "rollup -c scripts/rollup.config.js",
-    "build:lang": "vjslang --dir dist/lang",
-    "clean": "shx rm -rf ./dist ./test/dist ./cjs ./es && shx mkdir -p ./dist ./test/dist ./cjs ./es",
+    "clean": "shx rm -rf ./dist ./test/dist && shx mkdir -p ./dist ./test/dist",
     "docs": "npm-run-all docs:*",
     "docs:api": "jsdoc src -r -d docs/api",
     "docs:toc": "doctoc --notitle README.md",
@@ -31,9 +28,7 @@
     "preversion": "npm test",
     "version": "is-prerelease || npm run update-changelog && git add CHANGELOG.md",
     "watch": "npm-run-all -p watch:*",
-    "watch:cjs": "npm run build:cjs -- -w",
     "watch:css": "npm run build:css -- -w",
-    "watch:es": "npm run build:es -- -w",
     "watch:js": "npm run build:js -- -w",
     "prepublishOnly": "npm-run-all build-prod && vjsverify --verbose --skip-es-check",
     "bs": "browser-sync start -c docs/browser-sync.config.js"
@@ -80,8 +75,7 @@
   ],
   "vjsstandard": {
     "ignore": [
-      "es",
-      "cjs",
+      "tools",
       "dist",
       "docs",
       "test/dist"
@@ -89,12 +83,10 @@
   },
   "files": [
     "CONTRIBUTING.md",
-    "cjs/",
     "dist/",
     "docs/",
-    "es/",
-    "index.html",
     "scripts/",
+    "tools",
     "src/",
     "test/"
   ],

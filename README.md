@@ -31,12 +31,12 @@ This repository provide all you need to:
 - generate corresponding webvtt metadata file description
 - plugin to handle generated metadata track
 
-> __**NOTE:**__ No OCR (Optical Character Recognition) involved into this process. Again, bitmap subtitles are displayed as images, and they are packed into bigger file only to avoid HTTP traffic, but it's not mandatory.
+> __**NOTE:**__ No OCR (Optical Character Recognition) involved into this process. Again, bitmap subtitles are displayed as images, and they are packed into bigger files only to avoid HTTP traffic, but it's not mandatory.
 ## Usage
 ### Prepare your data
-Generate subtitles images packs with corresponding script from scripts folder.
-#### DVD .vob and .idx files — scripts/vobsubpack.php
-For DVD subtitles, two files are needed, a `.vob` and a `.idx`. With `script/vobsubpack.php` you can specify one of them, second one is automaticaly find if they have same base name, only extension differs, eg: `vobsub.vob` and `vobsub.idx`.  
+Generate subtitles images packs with corresponding script from `tools/` folder.
+#### DVD .vob and .idx files — tools/vobsubpack.php
+For DVD subtitles, two files are needed, a `.vob` and a `.idx`. With `tools/vobsubpack.php` you can specify one of them, second one is automaticaly find if they have same base name, only extension differs, eg: `vobsub.vob` and `vobsub.idx`.  
 It's an ugly script wrapper arround `sub2png` executable. (Why in PHP ?)  
 This script depend on `subp2png` binary and `bash` shell or compatible.
 ```sh
@@ -52,7 +52,7 @@ vobsubpack.php
  -o    Output directory
  -v    Print program version.
 ```
-#### Bluray pgssub — pgssubpack.py
+#### Bluray pgssub — tools/pgssubpack.py
 Relatively slow python script.  
 Be careful, with default row and column values, pack image can easily have a resolution of `4000 × 6500` pixels, so browser can take time to load it or completely refuse to load too large image. It's specialy visible on image transition, like loading the first subtitle or seeking through video stream.
 ```sh
@@ -133,7 +133,7 @@ So to be recognized correctly, your label must match format: `subtitle_type:vide
 
 ## What metadata track generated contains
 ```
-WEBVTT - python.sub
+WEBVTT - sample_file.sub
 
 NOTE Video size: 720x576
 NOTE File generated with vobsubpack.php 2024-09-05 07:09:37
@@ -141,7 +141,7 @@ NOTE Cue format: bitmap-file.png:width:height:driftX:driftY
 
 1
 00:00:49.760 --> 00:00:51.239
-python.1.vobsub.png 73:22:0:0
+sample_file.1.vobsub.png 73:22:0:0
 
 [...]
 ```
