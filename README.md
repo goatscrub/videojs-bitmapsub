@@ -53,8 +53,8 @@ vobsubpack.php
  -v    Print program version.
 ```
 #### Bluray pgssub — pgssubpack.py
-Python script, relatively slow.  
-With default row and column values, pack image can easily have a resolution of `4000 × 6500` pixels.
+Relatively slow python script.  
+Be careful, with default row and column values, pack image can easily have a resolution of `4000 × 6500` pixels, so browser can take time to load it or completely refuse to load too large image. It's specialy visible on image transition, like loading the first subtitle or seeking through video stream.
 ```sh
 $ ./pgssubpack.py /tmp/sample.fre.sup -t bitmap-subtitle/
 1823 image saved.
@@ -79,7 +79,12 @@ options:
   -t TARGETDIRECTORY, --targetDirectory TARGETDIRECTORY
                         folder destination for files generated
 ```
-### JS & CSS
+### Installation
+Install videojs-bitmapsub via npm:
+```sh
+$ npm install @goatscrub/videojs-bitmapsub
+```
+### Append JS & CSS
 Append CSS and javascript into your document.
 ```html
 <link href="//path-plugin/dist/videojs-bitmapsub.min.css" rel="stylesheet" />
@@ -142,6 +147,7 @@ python.1.vobsub.png 73:22:0:0
 ```
 ## [WIP]
 - settings panel
+- image pre-load
 - moving packing script to RUST and handle both pgssub or vobsub
 - append bitmap subtitles into subscapsmenu
 - menu icon ?
