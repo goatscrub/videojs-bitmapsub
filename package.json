@@ -31,7 +31,7 @@
     "watch:css": "npm run build:css -- -w",
     "watch:js": "npm run build:js -- -w",
     "prepublishOnly": "npm-run-all build-prod && vjsverify --verbose --skip-es-check",
-    "bs": "browser-sync start -c docs/browser-sync.config.js"
+    "dev": "browser-sync start -c dev/browser-sync.config.js -s dev"
   },
   "devDependencies": {
     "@babel/cli": "^7.14.3",
