@@ -136,11 +136,35 @@
     .video-js .vjs-control-bar {
       border-radius: 0 0 var(--border-radius) var(--border-radius);
     }
+
+    .version {
+      display: flex;
+      flex-wrap: wrap;
+      list-style-type: none;
+      padding: 0;
+      gap: 0.5rem;
+      font-weight: bold;
+      font-size: 0.8em;
+      font-family: monospace;
+      color: #9f9f9f;
+      margin-block: 0.5rem;
+      margin-inline: 1rem 0;
+    }
+
+    .version li {
+      border-radius: var(--border-radius);
+      border: 2px solid #82ad82;
+      padding: 0.3rem 0.4rem;
+    }
   </style>
 </head>
 
 <body>
   <h1>Bitmapsub <a href="https://videojs.com/">video.js®</a><br />plugin <u>demo</u> page</h1>
+  <ul class="version">
+    <li class="videojs"></li>
+    <li class="bitmapsub"></li>
+  </ul>
   <main>
 
     <section>
@@ -183,7 +207,9 @@
         }
       };
       const player = videojs('pgssub', vjsOptions);
-      window.p = player
+      // append video.js and bitmapsub plugin version
+      document.querySelector('.version .videojs').innerHTML = 'video.js v' + videojs.VERSION
+      document.querySelector('.version .bitmapsub').innerHTML = 'bitmapsub v' + player_vobsub.bitmapSubtitle().version()
     </script>
   </main>
   <footer>Video.js is a registered trademark of <a href="https://www.brightcove.com/">Brightcove, Inc.</a></footer>
