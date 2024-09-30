@@ -4,7 +4,11 @@
 <head>
   <html lang="en">
   <meta charset="utf-8" />
+  <meta name="author" content="goatscrub — Ludovic Mabilat">
+  <meta name="description" content="Bitmap video.js plugin demo page">
+  <meta name="keywords" content="video.js,videojs-plugin,videojs-bitmapsub,js,vobsub,pgssub,subtitle">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="only light">
   <title>videojs-bitmapsub Demo</title>
   <link href="https://unpkg.com/video.js/dist/video-js.min.css" rel="stylesheet">
   <script src="https://unpkg.com/video.js/dist/video.min.js"></script>
@@ -41,18 +45,13 @@
     }
 
     a:hover,
-    h1 a {
+    h1 span {
       padding: 0.25rem 0.5rem;
       background-color: #e3e1cc;
     }
 
-    h1 a,
-    h1 a:visited,
-    h1 a:hover,
-    h1 a:hover:visited {
+    h1 span {
       padding: 0.35rem 0.5rem;
-      color: inherit;
-      text-decoration: none;
     }
 
     a,
@@ -63,6 +62,8 @@
     }
 
     a {
+      transition-property: color, background-color, border-color;
+      transition-duration: 200ms;
       color: #598259;
     }
 
@@ -78,7 +79,7 @@
     }
 
     video,
-    h1 a {
+    h1 span {
       border-radius: var(--border-radius);
     }
 
@@ -89,6 +90,8 @@
     footer {
       border-top: 2px solid #82ad82;
       padding-top: 0.25rem;
+      font-style: italic;
+      font-size: 90%;
     }
 
     .video-js {
@@ -151,19 +154,56 @@
       margin-inline: 1rem 0;
     }
 
-    .version li {
+    .version a {
+      text-decoration: none;
+    }
+
+    .version a:hover {
+      background-color: transparent;
+    }
+
+    .version a:link,
+    .version a:visited,
+    .version a:hover {
+      color: inherit;
+    }
+
+    .version .bitmapsub a,
+    .version .videojs a {
+      display: block;
       border-radius: var(--border-radius);
       border: 2px solid #82ad82;
       padding: 0.3rem 0.4rem;
+    }
+
+    .version .videojs a:hover,
+    .version .bitmapsub a:hover {
+      color: #4f4f4f;
+      background-color: #e3e1cc;
+      border-color: #e3e1cc;
+    }
+
+    .version .github {
+      display: grid;
+      place-content: center;
+      margin: 0;
+      padding: 0;
+      border: none;
+    }
+
+    .version .github img {
+      display: block;
+      width: calc(1em + 0.3rem + 4px);
     }
   </style>
 </head>
 
 <body>
-  <h1>Bitmapsub <a href="https://videojs.com/">video.js®</a><br />plugin <u>demo</u> page</h1>
+  <h1>Bitmapsub <span>video.js®</span><br />plugin <u>demo</u> page</h1>
   <ul class="version">
-    <li class="videojs"></li>
-    <li class="bitmapsub"></li>
+    <li class="github"><img src="github-mark.svg"></li>
+    <li class="videojs"><a href="https://github.com/videojs/video.js/"></a></li>
+    <li class="bitmapsub"><a href="https://github.com/goatscrub/videojs-bitmapsub/"></a></li>
   </ul>
   <main>
 
@@ -208,8 +248,8 @@
       };
       const player = videojs('pgssub', vjsOptions);
       // append video.js and bitmapsub plugin version
-      document.querySelector('.version .videojs').innerHTML = 'video.js v' + videojs.VERSION
-      document.querySelector('.version .bitmapsub').innerHTML = 'bitmapsub v' + player_vobsub.bitmapSubtitle().version()
+      document.querySelector('.version .videojs a').innerHTML = 'video.js v' + videojs.VERSION
+      document.querySelector('.version .bitmapsub a').innerHTML = 'bitmapsub v' + player_vobsub.bitmapSubtitle().version()
     </script>
   </main>
   <footer>Video.js is a registered trademark of <a href="https://www.brightcove.com/">Brightcove, Inc.</a></footer>

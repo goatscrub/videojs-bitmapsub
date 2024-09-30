@@ -1,0 +1,22 @@
+{
+  "name": "videojs-bitmapsub-demo-page",
+  "version": "1.0.2",
+  "description": "Bitmapsub video.js® plugin demo page",
+  "main": "index.html",
+  "repository": "git:goatscrub/videojs-bitmapsub.git/",
+  "keywords": [
+    "video.js",
+    "videojs-plugin",
+    "videojs-bitmapsub",
+    "js",
+    "vobsub",
+    "pgssub",
+    "subtitle"
+  ],
+  "author": "goatscrub — Ludovic Mabilat",
+  "license": "MIT",
+  "homepage": "https://goatscrub.github.io/videojs-bitmapsub/",
+  "scripts": {
+    "dev": "cd ~/workflow/ && browser-sync start -s --no-ui --no-open --startPath videojs-bitmapsub --listen videojs-bitmapsub.test --files videojs-bitmapsub/index.html"
+  }
+}
