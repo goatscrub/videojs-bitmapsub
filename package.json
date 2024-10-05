@@ -31,7 +31,8 @@
     "watch:css": "npm run build:css -- -w",
     "watch:js": "npm run build:js -- -w",
     "prepublishOnly": "npm-run-all build-prod && vjsverify --verbose --skip-es-check",
-    "dev": "browser-sync start -c dev/browser-sync.config.js -s dev"
+    "dev": "browser-sync start -c dev/browser-sync.config.js -s dev",
+    "test-plugin": "rollup -c scripts/rollup.config.js --environment TEST_BUNDLE_ONLY && karma start scripts/karma.conf.js ; cat test/dist/coverage/text.txt"
   },
   "devDependencies": {
     "@babel/cli": "^7.14.3",
