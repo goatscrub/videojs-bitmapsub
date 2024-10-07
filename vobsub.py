@@ -129,17 +129,15 @@ def printBinary(octets, packof=32):
         except IndexError:
             print(octets[n:])
 
-def readSubtitlePacket():
-    ''''''
-
-def readDataPacket():
-    ''''''
-
-def readControlPacket():
-    ''''''
-
 def readPesPacket(octets):
-    ''''''
+    '''
+    Read MPEG-2 PES packet
+
+    :param octets: PES packet bytes
+    :type octets: bytes
+    :return: Elementary stream
+    :rtype: bytes
+    '''
     PesPayloadLen=int.from_bytes(octets[4:6])
     # Extension
     bits=Bits(octets[6:8])
@@ -153,33 +151,45 @@ def readPesPacket(octets):
         .format(PtsDtsFlag, escr, esRate, dsm, copy, crc, extFlag)
     )
     PesHeaderDataLen=int.from_bytes(octets[8:9])
+    # set offset because PES packet header has variable header length
+    headerOffset=9
     # test if extra PES header present
     if (PtsDtsFlag == 0b10):
         bits.load(octets[9:14])
-        print(bits.harvest([4, 3, 1, 15, 1, 15, 1]))
+        # print(bits.harvest([4, 3, 1, 15, 1, 15, 1]))
+        headerOffset=14
     print(f'PES header data length: {PesHeaderDataLen}')
     print(f'PES payload length: {PesPayloadLen}')
+    return octets[headerOffset:]
 
-    substreamid=int.from_bytes(vobfile.read(1))
-    print(f'substream id: {substreamid}')
-    PesPayload=vobfile.read(PesPayloadLen-1)
-    print('subtitle packet size: {}'.format(int.from_bytes(PesPayload[:2])))
-    dataPacketSize=int.from_bytes(PesPayload[2:4])
-    print('data packet size: {}'.format(dataPacketSize))
-    print('end sequence position: {}'.format(int.from_bytes(PesPayload[dataPacketSize+2:dataPacketSize+4])))
+def readESSubtitle(octets):
+    '''
+    _summary_
+    1 byte - substream id
+    2 byte - subtitle packet size
+    2 byte - data packet size
+
+    :param octets: _description_
+    :type octets: _type_
+    '''
+    print(octets)
+    substreamid=int.from_bytes(octets[0:1])
+    print(f'Substream id: {substreamid}')
+    print('Packet size: {}'.format(int.from_bytes(octets[1:3])))
+    dataPacketSize=int.from_bytes(octets[3:5])
+    doffset=1+2+2+1
+    print('Data packet size: {}'.format(dataPacketSize))
+    print('End sequence position: {}'.format(int.from_bytes(octets[doffset+dataPacketSize:dataPacketSize+doffset+2])))
     n=0
-    # while n <= 32:
-    #     offset=dataPacketSize+4+n
-    #     print('ctrl sequence: {} {}'.format(dataPacketSize+n, PesPayload[offset:offset+1]))
-    #     n+=1
+    while n <= 32:
+        offset=dataPacketSize+doffset+n
+        print('ctrl sequence: {} {}'.format(dataPacketSize+n, octets[offset:offset+1]))
+        n+=1
 
     # print('ff byte ?: {}'.format(int.from_bytes(PesPayload[dataPacketSize+2:dataPacketSize+4])))
     # print('ctrl sequence: {}'.format(PesPayload[dataPacketSize+7:dataPacketSize+8]))
     print()
 
-
-def readPsPacket():
-    ''''''
 
 def readPackHeader(octets):
     '''
@@ -229,7 +239,9 @@ while cliArgs.limit > 0:
         readPackHeader(streamId+vobfile.read(10))
     elif streamId == b'\x00\x00\x01\xbd':
         PesPacketLength=vobfile.read(2)
-        readPesPacket(streamId+PesPacketLength+vobfile.read(int.from_bytes(PesPacketLength)))
+        subtitle=readPesPacket(streamId+PesPacketLength+vobfile.read(int.from_bytes(PesPacketLength)))
+        if subtitle:
+            readESSubtitle(subtitle)
     cliArgs.limit-=vobfile.tell()
 
     # while True:
