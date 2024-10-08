@@ -141,15 +141,15 @@ def readPesPacket(octets):
     PesPayloadLen=int.from_bytes(octets[4:6])
     # Extension
     bits=Bits(octets[6:8])
-    print(
-        '>> {:02b} scrmbl:{:02b} priority:{:b} align:{:b} copyr:{:b} org:{:b}'
-        .format(*bits.harvest([2,2,1,1,1,1]))
-    )
+    # print(
+    #     '>> {:02b} scrmbl:{:02b} priority:{:b} align:{:b} copyr:{:b} org:{:b}'
+    #     .format(*bits.harvest([2,2,1,1,1,1]))
+    # )
     PtsDtsFlag, escr, esRate, dsm, copy, crc, extFlag=bits.harvest([2,1,1,1,1,1,1])
-    print(
-        '>> P|DTS flag:{:02b} escr:{:b} esrate:{:b} dsm:{:b} copyInfo:{:b} crc:{:b} extflg:{:b}'
-        .format(PtsDtsFlag, escr, esRate, dsm, copy, crc, extFlag)
-    )
+    # print(
+    #     '>> P|DTS flag:{:02b} escr:{:b} esrate:{:b} dsm:{:b} copyInfo:{:b} crc:{:b} extflg:{:b}'
+    #     .format(PtsDtsFlag, escr, esRate, dsm, copy, crc, extFlag)
+    # )
     PesHeaderDataLen=int.from_bytes(octets[8:9])
     # set offset because PES packet header has variable header length
     headerOffset=9
@@ -158,9 +158,44 @@ def readPesPacket(octets):
         bits.load(octets[9:14])
         # print(bits.harvest([4, 3, 1, 15, 1, 15, 1]))
         headerOffset=14
-    print(f'PES header data length: {PesHeaderDataLen}')
-    print(f'PES payload length: {PesPayloadLen}')
+    # print(f'PES header data length: {PesHeaderDataLen}')
+    # print(f'PES payload length: {PesPayloadLen}')
     return octets[headerOffset:]
+
+def readSubtitleControlSequence(octets):
+    ''''''
+    print(octets)
+    offset=0
+    while offset < len(octets):
+        ctrlSeq=octets[offset:offset+1]
+        print(f'>>> {ctrlSeq}')
+        if ctrlSeq == b'\x03':
+            # need 3 bytes more
+            colors=Bits(octets[offset+2:offset+5])
+            print('color1:{} color2:{} color3:{} color4:{}'.format(*colors.harvest([4, 4, 4, 4])))
+            offset+=3
+            continue
+        if ctrlSeq == b'\x04':
+            # need 3 bytes more
+            alphas=Bits(octets[offset+2:offset+5])
+            print('alpha1:{} alpha2:{} alpha3:{} alpha4:{}'.format(*list(reversed(alphas.harvest([4, 4, 4, 4])))))
+            offset+=3
+            continue
+        if ctrlSeq == b'\x05':
+            # need 7 bytes more
+            coordinates=Bits(octets[offset+2:offset+9])
+            print('xbegin:{} xend:{} ybegin:{} yend:{}'.format(*coordinates.harvest([6,6,6,6])))
+            offset+=7
+            continue
+        if ctrlSeq == b'\x06':
+            # need 5 bytes more
+            # if octets[-1:] != b'\xff': raise Exception('ctrlSeq termination error')
+            lines=octets[offset+2:]
+            print('first line:{} second line:{}'.format(int.from_bytes(lines[0:2]), int.from_bytes(lines[2:4])))
+            offset+=7
+            continue
+
+        offset+=1
 
 def readESSubtitle(octets):
     '''
@@ -172,24 +207,21 @@ def readESSubtitle(octets):
     :param octets: _description_
     :type octets: _type_
     '''
-    print(octets)
     substreamid=int.from_bytes(octets[0:1])
+    octets=octets[1:]
     print(f'Substream id: {substreamid}')
-    print('Packet size: {}'.format(int.from_bytes(octets[1:3])))
-    dataPacketSize=int.from_bytes(octets[3:5])
-    doffset=1+2+2+1
+    print('Subtitle Packet size: {}'.format(int.from_bytes(octets[0:2])))
+    dataPacketSize=int.from_bytes(octets[2:4])
     print('Data packet size: {}'.format(dataPacketSize))
-    print('End sequence position: {}'.format(int.from_bytes(octets[doffset+dataPacketSize:dataPacketSize+doffset+2])))
-    n=0
-    while n <= 32:
-        offset=dataPacketSize+doffset+n
-        print('ctrl sequence: {} {}'.format(dataPacketSize+n, octets[offset:offset+1]))
-        n+=1
 
-    # print('ff byte ?: {}'.format(int.from_bytes(PesPayload[dataPacketSize+2:dataPacketSize+4])))
-    # print('ctrl sequence: {}'.format(PesPayload[dataPacketSize+7:dataPacketSize+8]))
+    endSequenceOffset=int.from_bytes(octets[dataPacketSize+2:dataPacketSize+4])
+    print('End sequence position: {}'.format(endSequenceOffset))
+    endSequence=octets[endSequenceOffset:]
+    print(f'End control sequence: {endSequence}')
+
+    controlSequence=octets[dataPacketSize+4:endSequenceOffset]
+    readSubtitleControlSequence(controlSequence)
     print()
-
 
 def readPackHeader(octets):
     '''
