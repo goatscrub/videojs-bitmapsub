@@ -60,6 +60,9 @@ if ( header != b'\x00\x00\x01\xba' ):
 # file rewind
 vobfile.seek(0)
 
+def where(msg, prefix='', suffix=''):
+    ''''''
+    print('{}{} {}{}'.format(prefix, vobfile.tell(), msg, suffix))
 class Bits:
     def __init__(self, octets):
         self.load(octets)
@@ -138,37 +141,37 @@ def readPesPacket(octets):
     :return: Elementary stream
     :rtype: bytes
     '''
+    where(prefix='\n>>> ', msg='PES')
     PesPayloadLen=int.from_bytes(octets[4:6])
     # Extension
     bits=Bits(octets[6:8])
-    # print(
-    #     '>> {:02b} scrmbl:{:02b} priority:{:b} align:{:b} copyr:{:b} org:{:b}'
-    #     .format(*bits.harvest([2,2,1,1,1,1]))
-    # )
+    print(
+        '>> {:02b} scrmbl:{:02b} priority:{:b} align:{:b} copyr:{:b} org:{:b}'
+        .format(*bits.harvest([2,2,1,1,1,1]))
+    )
     PtsDtsFlag, escr, esRate, dsm, copy, crc, extFlag=bits.harvest([2,1,1,1,1,1,1])
-    # print(
-    #     '>> P|DTS flag:{:02b} escr:{:b} esrate:{:b} dsm:{:b} copyInfo:{:b} crc:{:b} extflg:{:b}'
-    #     .format(PtsDtsFlag, escr, esRate, dsm, copy, crc, extFlag)
-    # )
+    print(
+        '>> P|DTS flag:{:02b} escr:{:b} esrate:{:b} dsm:{:b} copyInfo:{:b} crc:{:b} extflg:{:b}'
+        .format(PtsDtsFlag, escr, esRate, dsm, copy, crc, extFlag)
+    )
     PesHeaderDataLen=int.from_bytes(octets[8:9])
     # set offset because PES packet header has variable header length
     headerOffset=9
     # test if extra PES header present
     if (PtsDtsFlag == 0b10):
         bits.load(octets[9:14])
-        # print(bits.harvest([4, 3, 1, 15, 1, 15, 1]))
+        print(bits.harvest([4, 3, 1, 15, 1, 15, 1]))
         headerOffset=14
-    # print(f'PES header data length: {PesHeaderDataLen}')
-    # print(f'PES payload length: {PesPayloadLen}')
+    print(f'PES header data length: {PesHeaderDataLen}')
+    print(f'PES payload length: {PesPayloadLen}')
     return octets[headerOffset:]
 
 def readSubtitleControlSequence(octets):
     ''''''
-    print(octets)
     offset=0
     while offset < len(octets):
         ctrlSeq=octets[offset:offset+1]
-        print(f'>>> {ctrlSeq}')
+        # print(f'>>> {ctrlSeq}')
         if ctrlSeq == b'\x03':
             # need 3 bytes more
             colors=Bits(octets[offset+2:offset+5])
@@ -184,7 +187,9 @@ def readSubtitleControlSequence(octets):
         if ctrlSeq == b'\x05':
             # need 7 bytes more
             coordinates=Bits(octets[offset+2:offset+9])
-            print('xbegin:{} xend:{} ybegin:{} yend:{}'.format(*coordinates.harvest([6,6,6,6])))
+            x,X,y,Y=coordinates.harvest([6,6,6,6])
+            print('xbegin:{} xend:{} ybegin:{} yend:{}'.format(x,X,y,Y))
+            print(f'subtitle size: {X-x+1}×{Y-y-1}')
             offset+=7
             continue
         if ctrlSeq == b'\x06':
@@ -207,6 +212,7 @@ def readESSubtitle(octets):
     :param octets: _description_
     :type octets: _type_
     '''
+    where(prefix='\n>>> ', msg='SUBTITTLE')
     substreamid=int.from_bytes(octets[0:1])
     octets=octets[1:]
     print(f'Substream id: {substreamid}')
@@ -221,7 +227,6 @@ def readESSubtitle(octets):
 
     controlSequence=octets[dataPacketSize+4:endSequenceOffset]
     readSubtitleControlSequence(controlSequence)
-    print()
 
 def readPackHeader(octets):
     '''
@@ -232,6 +237,7 @@ def readPackHeader(octets):
     program mux rate + reserved + pack stuffing length
     '''
     identifier=octets[0:4]
+    where(prefix='\n>>> ', msg=f'Packet Header: {identifier}')
     if identifier != b'\x00\x00\x01\xba':
         raise Exception ('pouloum, paf.')
     bits=Bits(octets[4:10])
@@ -265,6 +271,8 @@ packHeader=[[b'\x00'], [b'\x00'], [b'\x01'], streamId]
 search_index=0
 found=b''
 
+cliArgs.limit=1024*10
+# while False:
 while cliArgs.limit > 0:
     streamId=vobfile.read(4)
     if streamId == b'\x00\x00\x01\xba':
@@ -272,63 +280,41 @@ while cliArgs.limit > 0:
     elif streamId == b'\x00\x00\x01\xbd':
         PesPacketLength=vobfile.read(2)
         subtitle=readPesPacket(streamId+PesPacketLength+vobfile.read(int.from_bytes(PesPacketLength)))
-        if subtitle:
-            readESSubtitle(subtitle)
+        if subtitle: readESSubtitle(subtitle)
+    elif streamId == b'\x00\x00\x01\xbe':
+        # readPackHeader(streamId+vobfile.read(10))
+        # print(streamId)
+        size=int.from_bytes(vobfile.read(2))
+        # print(size)
+        # print(vobfile.read(size))
+        vobfile.read(size)
+        continue
+        break
+        # padding stream, read length and skip it
+        length=vobfile.read(2)
+        print('padding length: {}'.format(int.from_bytes(length)))
+        # print(vobfile.read(int.from_bytes(length)))
+        vobfile.seek(int.from_bytes(length))
+
+    else:
+        print(streamId)
     cliArgs.limit-=vobfile.tell()
+maxoctets=1024*10
+marker=( (b'\x00'), (b'\x00'), (b'\x01'), ((b'\xba'), (b'\xbd'), (b'\xbe')) )
+found=b''
+markerIndex=0
+while False:
+# while  octet:=vobfile.read(1):
+    if octet in marker[markerIndex]:
+        markerIndex+=1
+        found+=octet
+        # end of possible marker
+        if markerIndex == len(marker):
+            print(':: Found: {} > {:5d} {}'.format(found[-1:], vobfile.tell(), getStreamId(octet)))
+            markerIndex, found=0,b''
+            continue
 
-    # while True:
-    #     # octet=vobfile.read(1)
-    #     # chunk = octet[nofbytes+n:nofbytes+n+1]
-    #     # n += 1
-    #     if ( byte in packHeader[search_index] ):
-    #         search_index+=1
-    #         found+=byte
-    #         if search_index >= len(packHeader):
-    #             search_index=0
-    #             # print(f'found {found}: {getStreamId(byte)}')
-    #             print(f'> {getStreamId(byte)}')
-    #             # stream ID: private stream
-    #             if byte == b'\xbd':
-    #                 PesPayloadLen=int.from_bytes(vobfile.read(2))
+    maxoctets-=1
+    if maxoctets<0: break
 
-    #                 # Extension
-    #                 bits=Bits(vobfile.read(2))
-    #                 print(
-    #                     '>> {} scrmbl:{} priority:{} align:{} copyr:{} org:{}'
-    #                     .format(*bits.harvest([2,2,1,1,1,1]))
-    #                 )
-    #                 PtsDtsFlag, escr, esRate, dsm, copy, crc, extFlag=bits.harvest([2,1,1,1,1,1,1])
-    #                 print(
-    #                     '>> P|DTS flag:{} escr:{} esrate:{} dsm:{} copyInfo:{} crc:{} extflg:{}'
-    #                     .format(PtsDtsFlag, escr, esRate, dsm, copy, crc, extFlag)
-    #                 )
-    #                 PesHeaderDataLen=int.from_bytes(vobfile.read(1))
-    #                 # test if extra PES header present
-    #                 if (PtsDtsFlag == '10'):
-    #                     bits.load(vobfile.read(5))
-    #                     print(bits.harvest([4, 3, 1, 15, 1, 15, 1]))
-    #                 print(f'PES header data length: {PesHeaderDataLen}')
-    #                 print(f'PES payload length: {PesPayloadLen}')
 
-    #                 substreamid=int.from_bytes(vobfile.read(1))
-    #                 print(f'substream id: {substreamid}')
-    #                 PesPayload=vobfile.read(PesPayloadLen-1)
-    #                 print('subtitle packet size: {}'.format(int.from_bytes(PesPayload[:2])))
-    #                 dataPacketSize=int.from_bytes(PesPayload[2:4])
-    #                 print('data packet size: {}'.format(dataPacketSize))
-    #                 print('end sequence position: {}'.format(int.from_bytes(PesPayload[dataPacketSize+2:dataPacketSize+4])))
-    #                 n=0
-    #                 while n <= 32:
-    #                     offset=dataPacketSize+4+n
-    #                     print('ctrl sequence: {} {}'.format(dataPacketSize+n, PesPayload[offset:offset+1]))
-    #                     n+=1
-
-    #                 # print('ff byte ?: {}'.format(int.from_bytes(PesPayload[dataPacketSize+2:dataPacketSize+4])))
-    #                 # print('ctrl sequence: {}'.format(PesPayload[dataPacketSize+7:dataPacketSize+8]))
-    #                 print()
-    #         else:
-    #             continue
-    #     else:
-    #         search_index=0
-    #         found=b''
-    # cliArgs.limit -=1
