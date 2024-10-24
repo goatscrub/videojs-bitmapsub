@@ -1,7 +1,7 @@
 {
   "name": "@goatscrub/videojs-bitmapsub",
   "author": "goatscrub Ludovic Mabilat",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A video.js plugin helps you displaying bitmap subtitle type as image, like vobsub (DVD) or pgssub (Bluray).",
   "homepage": "https://goatscrub.github.io/videojs-bitmapsub/",
   "repository": "github:goatscrub/videojs-bitmapsub",
