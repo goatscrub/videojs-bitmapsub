@@ -83,7 +83,7 @@ class BitmapSubtitleContainer extends VjsComponent {
   constructor(player, options) {
     // Default components options
     const _defaultOptions = {
-      name: 'bitmapsub-container'
+      name: 'bitmapsubSubtitleContainer'
     };
 
     options = videojs.obj.merge(_defaultOptions, options);
@@ -171,7 +171,7 @@ class BitmapVideoWindow extends VjsComponent {
   */
   constructor(player, options = {}) {
     const _defaultOptions = {
-      name: 'bitmapsub-video-window'
+      name: 'bitmapsubVideoWindow'
     };
 
     options = videojs.obj.merge(_defaultOptions, options);
@@ -323,22 +323,22 @@ class BitmapSubtitle extends VjsPlugin {
   appendComponent() {
     // Instantiate Bitmap Subtitle Components
     // First: global video window element
-    this.bmpVideoWindow = new BitmapVideoWindow(this.player, this.options);
+    this.bmpsubVideoWindow = new BitmapVideoWindow(this.player);
     // Second: bitmap subtitle wrapper element
-    this.bmpSubContainer = new BitmapSubtitleContainer(this.player, this.options);
+    this.bmpsubContainer = new BitmapSubtitleContainer(this.player);
     // get reference of bitmap subtitle element
-    this.subtitleElement = this.bmpSubContainer.el().querySelector('.bitmap-subtitle');
+    this.subtitleElement = this.bmpsubContainer.el().querySelector('.bitmap-subtitle');
     // Third: append bitmap menu into video.js controlbar
-    this.bitmapMenu = new BitmapMenuButton(this.player);
-    this.bmpVideoWindow.addChild(this.bmpSubContainer);
+    this.bmpsubMenu = new BitmapMenuButton(this.player);
+    this.bmpsubVideoWindow.addChild(this.bmpsubContainer);
 
-    this.player.addChild(this.bmpVideoWindow);
+    this.player.addChild(this.bmpsubVideoWindow);
 
-    // Place bitmapMenuButton after SubsCapsMenuButton
+    // Place bmpsubMenuButton after SubsCapsMenuButton
     const bitmapMenuButtonPlacement = this.player.controlBar.children()
       .indexOf(this.player.controlBar.getChild('SubsCapsButton')) + 1;
 
-    this.player.controlBar.addChild(this.bitmapMenu, null, bitmapMenuButtonPlacement);
+    this.player.controlBar.addChild(this.bmpsubMenu, null, bitmapMenuButtonPlacement);
   }
 
   /**
@@ -346,8 +346,8 @@ class BitmapSubtitle extends VjsPlugin {
  */
   updateBitmapMenu() {
     this.bitmapTracks = this.getBitmapTracks();
-    this.bitmapMenu.menuItems = this.buildTrackMenuItems();
-    this.bitmapMenu.update();
+    this.bmpsubMenu.menuItems = this.buildTrackMenuItems();
+    this.bmpsubMenu.update();
   }
 
   /**
@@ -382,7 +382,7 @@ class BitmapSubtitle extends VjsPlugin {
 
     offBitmap.handleClick = () => {
       // const menu = this.player.controlBar.getChild('BitmapMenuButton').menu;
-      const menu = this.bitmapMenu.menu;
+      const menu = this.bmpsubMenu.menu;
 
       // Deselect all items from bitmap menu items
       menu.children().forEach(item => {
@@ -395,7 +395,7 @@ class BitmapSubtitle extends VjsPlugin {
       // Select current items into bitmap menu
       offBitmap.addClass('vjs-selected');
       // Hide bitmap subtitle container
-      this.bmpSubContainer.hide();
+      this.bmpsubContainer.hide();
       // Remove handler on this.currentSubtitle.track
       this.listenCueChange(false);
     };
@@ -430,16 +430,16 @@ class BitmapSubtitle extends VjsPlugin {
       if (track.default) {
         track.mode = 'hidden';
         this.currentSubtitle.track = track;
-        this.bitmapMenu.selectItem(item);
+        this.bmpsubMenu.selectItem(item);
         this.listenCueChange();
-        this.bmpSubContainer.setBitmapVariation(bitmapVariation);
+        this.bmpsubContainer.setBitmapVariation(bitmapVariation);
       } else {
         track.mode = 'disabled';
       }
       item.handleClick = () => {
-        this.bitmapMenu.selectItem(item);
+        this.bmpsubMenu.selectItem(item);
         this.changeToTrack(item.track.id);
-        this.bmpSubContainer.setBitmapVariation(bitmapVariation);
+        this.bmpsubContainer.setBitmapVariation(bitmapVariation);
       };
       // Append item to subtitle menu
       items.push(item);
@@ -471,10 +471,10 @@ class BitmapSubtitle extends VjsPlugin {
       style = `width:${width}px;height:${height}px;background-image:url(${backgroundImage});`;
       style += `background-position-x:-${driftX}px;background-position-y:-${driftY}px`;
       this.subtitleElement.style = style;
-      this.bmpSubContainer.el().style.opacity = 1;
+      this.bmpsubContainer.el().style.opacity = 1;
     } else {
       // Hide bitmap subtitle
-      this.bmpSubContainer.el().style.opacity = 0;
+      this.bmpsubContainer.el().style.opacity = 0;
     }
   }
 
@@ -518,16 +518,16 @@ class BitmapSubtitle extends VjsPlugin {
     if (!this.currentSubtitle.track) {
       return;
     }
-    const scaleSize = (this.bmpVideoWindow.dimension('width') / this.currentSubtitle.track.bitmapsub.width).toFixed(2);
+    const scaleSize = (this.bmpsubVideoWindow.dimension('width') / this.currentSubtitle.track.bitmapsub.width).toFixed(2);
 
     this.bmpSubContainer.scaleTo(scaleSize);
   }
 }
 
 BitmapSubtitle.VERSION = VERSION;
-videojs.registerComponent('bitmapVideoWindow', BitmapVideoWindow);
-videojs.registerComponent('bitmapSubtitleContainer', BitmapSubtitleContainer);
-videojs.registerComponent('bitmapMenuButton', BitmapMenuButton);
-videojs.registerPlugin('bitmapSubtitle', BitmapSubtitle);
+videojs.registerComponent('bitmapsubVideoWindow', BitmapVideoWindow);
+videojs.registerComponent('bitmapsubSubtitleContainer', BitmapSubtitleContainer);
+videojs.registerComponent('bitmapsubMenuButton', BitmapMenuButton);
+videojs.registerPlugin('bitmapsub', BitmapSubtitle);
 
 export { BitmapSubtitle, BitmapMenuButton, BitmapSubtitleContainer, BitmapVideoWindow };
