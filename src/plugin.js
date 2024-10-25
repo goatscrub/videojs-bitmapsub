@@ -522,6 +522,7 @@ class BitmapSubtitle extends VjsPlugin {
     }
     const scaleSize = (this.bmpsubVideoWindow.dimension('width') / this.currentSubtitle.track.bitmapsub.width).toFixed(2);
 
+    this.bmpsubContainer.scaleTo(scaleSize);
   }
 
   /**
@@ -541,4 +542,4 @@ videojs.registerComponent('bitmapsubSubtitleContainer', BitmapSubtitleContainer)
 videojs.registerComponent('bitmapsubMenuButton', BitmapMenuButton);
 videojs.registerPlugin('bitmapsub', BitmapSubtitle);
 
-export { BitmapSubtitle, BitmapMenuButton, BitmapSubtitleContainer, BitmapVideoWindow };
+export default BitmapSubtitle;
