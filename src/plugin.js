@@ -522,7 +522,16 @@ class BitmapSubtitle extends VjsPlugin {
     }
     const scaleSize = (this.bmpsubVideoWindow.dimension('width') / this.currentSubtitle.track.bitmapsub.width).toFixed(2);
 
-    this.bmpSubContainer.scaleTo(scaleSize);
+  }
+
+  /**
+   * Listeners cleanup on dispose event.
+   * Remove textTracks listener to avoid videojs player error on dipose event.
+   */
+  dispose() {
+    ['addtrack', 'removetrack']
+      .forEach(eventName => this.player.textTracks().off(eventName));
+    super.dispose();
   }
 }
 
