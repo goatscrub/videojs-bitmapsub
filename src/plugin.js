@@ -24,10 +24,10 @@ class BitmapMenuButton extends VjsMenuButton {
       name: 'bitmapsubMenuButton'
     };
 
+    options = videojs.obj.merge(_defaultOptions, options);
     super(player, options);
     this.player = player;
     this.options = options;
-    this.options = videojs.obj.merge(_defaultOptions, options);
     // Append subtitle icon
     this.addClass('vjs-subtitles-button');
   }
@@ -86,9 +86,10 @@ class BitmapSubtitleContainer extends VjsComponent {
       name: 'bitmapsub-container'
     };
 
+    options = videojs.obj.merge(_defaultOptions, options);
     super(player, options);
     this.player = player;
-    this.options = videojs.obj.merge(_defaultOptions, options);
+    this.options = options;
     // Dynamic style for this component
     this.buildDynamicStyle();
     // Append listener for video size changes
@@ -173,8 +174,9 @@ class BitmapVideoWindow extends VjsComponent {
       name: 'bitmapsub-video-window'
     };
 
+    options = videojs.obj.merge(_defaultOptions, options);
     super(player, options);
-    this.options = videojs.obj.merge(_defaultOptions, options);
+    this.options = options;
     this.player = player;
     [this.playerSize, this.videoSize] = [{}, {}];
     this.player.on('loadeddata', e => {
