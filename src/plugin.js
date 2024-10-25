@@ -505,6 +505,8 @@ class BitmapSubtitle extends VjsPlugin {
         return;
       }
       track.mode = 'hidden';
+      // Show bitmap subtitle container, because it can be previously hidden
+      this.bmpsubContainer.show();
       this.listenCueChange(false);
       this.currentSubtitle.track = track;
       this.listenCueChange();
