@@ -299,6 +299,7 @@ class BitmapSubtitle extends VjsPlugin {
     this.player = player;
     this.options = videojs.obj.merge(_pluginDefaults, options);
 
+    this.id = Math.round(Math.random() * 1e16);
     // Handle only bitmap subtitle tracks
     this.bitmapTracks = [];
     // Save current subtitle track with associated event listener state
