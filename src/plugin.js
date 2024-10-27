@@ -195,6 +195,7 @@ class BitmapVideoWindow extends VjsComponent {
 
     options = videojs.obj.merge(_defaultOptions, options);
     super(player, options);
+
     this.options = options;
     this.player = player;
     [this.playerSize, this.videoSize] = [{}, {}];
@@ -305,7 +306,7 @@ class BitmapSubtitle extends VjsPlugin {
   * @param  {string} [option.labelSuffix=' ⋅BMP'] - labelPrefix: menu item label suffix
   * @param  {string} [option.name='bitmapsub'] - component name
   */
-  constructor(player, options) {
+  constructor(player, options = {}) {
     // Default options for the plugin
     const _pluginDefaults = {
       pathPrefix: '/bitmapsub/',
@@ -314,9 +315,11 @@ class BitmapSubtitle extends VjsPlugin {
       name: 'bitmapsub'
     };
 
+    options = videojs.obj.merge(_pluginDefaults, options);
     super(player, options);
+
     this.player = player;
-    this.options = videojs.obj.merge(_pluginDefaults, options);
+    this.options = options;
 
     this._isDisposed = false;
     this.id = Math.round(Math.random() * 1e16);
