@@ -360,7 +360,7 @@ class BitmapSubtitle extends VjsPlugin {
 
     // Place bmpsubMenuButton after SubsCapsMenuButton
     const bitmapMenuButtonPlacement = this.player.controlBar.children()
-      .indexOf(this.player.controlBar.getChild('SubsCapsButton')) + 1;
+      .indexOf(this.player.controlBar.subsCapsButton) + 1;
 
     this.player.controlBar.addChild(this.bmpsubMenu, null, bitmapMenuButtonPlacement);
   }
@@ -405,7 +405,6 @@ class BitmapSubtitle extends VjsPlugin {
     const offBitmap = new VjsMenuItem(this.player, offBitmapOptions);
 
     offBitmap.handleClick = () => {
-      // const menu = this.player.controlBar.getChild('BitmapMenuButton').menu;
       const menu = this.bmpsubMenu.menu;
 
       // Deselect all items from bitmap menu items
