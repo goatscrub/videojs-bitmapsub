@@ -67,6 +67,16 @@ class BitmapMenuButton extends VjsMenuButton {
     item.addClass('vjs-selected');
   }
 
+  /**
+   * Dispose component
+   */
+  dispose() {
+    this.player = undefined;
+    this.options = undefined;
+    this.menuItems = undefined;
+
+    super.dispose();
+  }
 }
 
 /**
@@ -152,6 +162,15 @@ class BitmapSubtitleContainer extends VjsComponent {
     }
   }
 
+  /**
+   * Dispose component.
+   */
+  dispose() {
+    this.player.off('playerresize', this.scaleTo);
+    this.player = undefined;
+    this.options = undefined;
+    super.dispose();
+  }
 }
 
 /**
@@ -299,6 +318,7 @@ class BitmapSubtitle extends VjsPlugin {
     this.player = player;
     this.options = videojs.obj.merge(_pluginDefaults, options);
 
+    this._isDisposed = false;
     this.id = Math.round(Math.random() * 1e16);
     // Handle only bitmap subtitle tracks
     this.bitmapTracks = [];
@@ -533,7 +553,17 @@ class BitmapSubtitle extends VjsPlugin {
   dispose() {
     ['addtrack', 'removetrack']
       .forEach(eventName => this.player.textTracks().off(eventName));
+    this._isDisposed = true;
     super.dispose();
+  }
+
+  /**
+   * Tell if plugin is disposed or not.
+   *
+   * @return {boolean} disposed or not
+   */
+  isDisposed() {
+    return this._isDisposed;
   }
 }
 
