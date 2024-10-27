@@ -253,7 +253,7 @@ class BitmapVideoWindow extends VjsComponent {
     this.setPlayerSize();
 
     let [videoWindowWidth, videoWindowHeight, videoWindowLeft, videoWindowTop, adjustment] = [0, 0, 0, 0, 0];
-    const ctrlBarHeight = this.player.getChild('ControlBar').height();
+    const ctrlBarHeight = this.player.controlBar.height();
 
     // Test for black bars around video window
     if (this.videoSize.ratio > this.playerSize.ratio) {
