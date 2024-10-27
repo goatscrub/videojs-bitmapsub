@@ -287,7 +287,7 @@ class BitmapVideoWindow extends VjsComponent {
     this.el().style.setProperty('--adjustment', adjustment + 'px');
     this.el().style.setProperty('--padding', padding + 'px');
 
-    // After that, component is considered ready
+    // After that, component is considered ready ; run only once.
     this.trigger('ready');
     this.off('ready');
   }
