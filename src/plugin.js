@@ -102,8 +102,6 @@ class BitmapSubtitleContainer extends VjsComponent {
     this.options = options;
     // Dynamic style for this component
     this.buildDynamicStyle();
-    // Append listener for video size changes
-    this.player.on('playerresize', this.scaleTo);
   }
 
   /**
@@ -335,9 +333,10 @@ class BitmapSubtitle extends VjsPlugin {
         .forEach(eventName => this.player.textTracks().on(eventName, evt => {
           this.updateBitmapMenu();
         }));
-      this.player.on('playerresize', evt => {
-        this.scaleSubtitle();
-      });
+      // First scale at loadeddata
+      this.scaleSubtitle();
+      // Append listener for video size changes
+      this.player.on('playerresize', () => this.scaleSubtitle());
     });
   }
 

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>QUnit</title>
+<link rel="stylesheet" href="node_modules/qunit/qunit/qunit.css">
+<script src="node_modules/video.js/dist/video.js"></script>
+<script src="dist/videojs-bitmapsub.js"></script>
+
+<body>
+  <div id="qunit"></div>
+  <div id="qunit-fixture">
+    <video id="test" controls class="video-js">
+      <source src="docs/samples/sample1.mp4">
+      <track default src="docs/samples/vobsub.fre.vtt" kind="metadata" language="fre" label="vobsub:720:Français">
+      <track src="docs/samples/pgssub.eng.vtt" kind="metadata" language="eng" label="pgssub:1920:English">
+    </video>
+  </div>
+  <script src="node_modules/qunit/qunit/qunit.js"></script>
+  <script>
+    const player = videojs('test', { muted: true, plugins: { bitmapSubtitle: { pathPrefix: '/docs/samples/' } } })
+
+    QUnit.module('bitmapsub', function() {
+      QUnit.log(e => { console.log(player.el()) })
+
+      QUnit.test('track should have loaded', function(assert) {
+        assert.equal(player.textTracks().length, 2)
+        assert.equal(player.textTracks()[0].kind, 'metadata')
+      })
+
+      QUnit.test('DOM children append', function(assert) {
+        const bitmapContainer = player.el().querySelector('div.video-js div.bitmapsub-container')
+        const bitmapSubtitle = bitmapContainer.querySelector('div.bitmap-subtitle')
+        assert.notEqual(bitmapContainer, null)
+        assert.notEqual(bitmapSubtitle, null)
+      })
+    });
+  </script>
+</body>
+
+</html>

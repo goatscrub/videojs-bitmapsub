@@ -7,8 +7,8 @@ const bitmapsub = `${workflow}videojs-bitmapsub/`;
 
 module.exports = {
   files: [
-    'dist/videojs-bitmapsub.js',
-    'dist/videojs-bitmapsub.css',
+    'src/plugin.css', 'src/plugin.js',
+    'dist/videojs-bitmapsub.css', 'dist/videojs-bitmapsub.js',
     'index.html',
     `${bitmapsub}test/dist/coverage/index.html`
   ],

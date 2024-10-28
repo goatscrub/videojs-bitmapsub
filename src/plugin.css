@@ -1,7 +1,7 @@
 .bitmapsub-video-window {
   --padding: 0px;
   --adjustment: 0px;
-  position: relative;
+  position: absolute;
   justify-items: center;
   pointer-events: none;
   display: none;
@@ -12,17 +12,17 @@
 }
 
 .bitmapsub-container {
+  position: absolute;
+  bottom: var(--padding);
+  z-index: 1000;
   border-radius: 3px;
   opacity: 0;
   transition: opacity 0.1s, bottom 0.2s 0.1s;
   transform-origin: bottom;
-  z-index: 1;
   pointer-events: none;
   font-size: 36px;
   padding: 1ch 2ch;
   background-color: #0006;
-  position: absolute;
-  bottom: var(--padding);
 }
 
 .vjs-control-bar {
