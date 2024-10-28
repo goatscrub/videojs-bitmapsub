@@ -34,6 +34,7 @@
     "dev": "browser-sync start -c scripts/browser-sync.config.dev.js -s dev",
     "dev:js": "npm run build:js -- -w",
     "dev:css": "npm run build:css -- -w",
+    "demo": "browser-sync start -c scripts/browser-sync.config.demo.js -s",
     "watch:dev": "cross-env-shell GNUK_DEV_WATCH=1 npm-run-all -p dev:css dev:js",
     "test-plugin": "rollup -c scripts/rollup.config.js --environment TEST_BUNDLE_ONLY && karma start scripts/karma.conf.js ; cat test/dist/coverage/text.txt"
   },

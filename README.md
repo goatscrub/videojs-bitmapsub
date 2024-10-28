@@ -97,14 +97,14 @@ Two video.js classical ways, at video.js player creation:
 // On player creation
 const player1 = videojs('sample', {
   plugins: {
-    bitmapSubtitle: { pathPrefix: '/images-subtitles/' }
+    bitmapsub: { pathPrefix: '/images-subtitles/' }
   }
 });
 
 // Passing options directly to plugin
 const player2 = videojs('sample');
 
-player2.bitmapSubtitle({ pathPrefix: '/images-subtitles/' });
+player2.bitmapsub({ pathPrefix: '/images-subtitles/' });
 ```
 #### Plugin options and defaults values
 

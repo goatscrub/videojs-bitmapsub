@@ -2,78 +2,308 @@
 <html>
 
 <head>
+  <html lang="en">
   <meta charset="utf-8" />
+  <meta name="author" content="goatscrub — Ludovic Mabilat">
+  <meta name="description" content="Bitmap video.js plugin demo page">
+  <meta name="keywords" content="video.js,videojs-plugin,videojs-bitmapsub,js,vobsub,pgssub,subtitle">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="only light">
   <title>videojs-bitmapsub Demo</title>
   <link href="https://unpkg.com/video.js/dist/video-js.min.css" rel="stylesheet">
   <script src="https://unpkg.com/video.js/dist/video.min.js"></script>
-  <link href="/dist/videojs-bitmapsub.css" rel="stylesheet" />
-  <script src="/dist/videojs-bitmapsub.min.js"></script>
+  <!-- <link href="https://cdn.jsdelivr.net/npm/@goatscrub/videojs-bitmapsub@latest/dist/videojs-bitmapsub.css" rel="stylesheet" /> -->
+  <!-- <script src="https://cdn.jsdelivr.net/npm/@goatscrub/videojs-bitmapsub@latest/dist/videojs-bitmapsub.min.js"></script> -->
+  <script src="../dist/videojs-bitmapsub.js"></script>
+  <link rel="stylesheet" href="../dist/videojs-bitmapsub.css">
   <style>
+    :root {
+      --border-radius: 0.25rem;
+    }
+
     body {
       margin: 0;
-      padding: 0;
+      padding: 1rem;
       font-family: sans-serif;
       font-size: 16px;
+      color: #4f4f4f;
+      background-color: #f1f1e6;
     }
 
     main {
-      width: 50%;
-      margin-inline: auto;
-    }
-
-    h2 {
-      border-bottom: 2px solid #008000aa;
+      width: clamp(300px, 50%, 800px);
+      margin: 3rem;
     }
 
     section {
       margin-bottom: 4em;
+      max-width: 100%;
+    }
+
+    h1 {
+      margin: 0;
+      display: inline-block;
+      padding: 1rem;
+    }
+
+    a:hover,
+    h1 span {
+      padding: 0.25rem 0.5rem;
+      background-color: #e3e1cc;
+    }
+
+    h1 span {
+      padding: 0.35rem 0.5rem;
+    }
+
+    a,
+    h1 u {
+      text-decoration-color: #e3e1cc;
+      text-underline-offset: 0.5rem;
+      text-decoration-thickness: 0.25em;
+    }
+
+    a {
+      transition-property: color, background-color, border-color;
+      transition-duration: 200ms;
+      color: #598259;
+    }
+
+    a:hover,
+    a:hover:visited {
+      padding-inline: 0;
+      text-decoration: none;
+      color: #444;
+    }
+
+    a:visited {
+      color: #82ad82;
+    }
+
+    video,
+    h1 span {
+      border-radius: var(--border-radius);
+    }
+
+    h2 {
+      border-bottom: 2px solid #82ad82;
+    }
+
+    footer {
+      border-top: 2px solid #82ad82;
+      padding-top: 0.25rem;
+      font-style: italic;
+      font-size: 90%;
+    }
+
+    .video-js {
+      background-color: transparent;
+    }
+
+    .video-js.vjs-has-started .vjs-big-play-button {
+      display: none;
+    }
+
+    .video-js:hover .vjs-big-play-button:hover,
+    .video-js:hover .vjs-big-play-button {
+      background-color: #82ad82;
+    }
+
+    .video-js .vjs-big-play-button {
+      background-color: #97ad97;
+      margin: 0;
+      padding: 0;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 1.5em;
+      height: 1.5em;
+      translate: -50% -50%;
+      display: grid;
+      place-content: center;
+      border: none;
+      border-radius: 100vw;
+      font-size: 6em;
+    }
+
+    .video-js .vjs-big-play-button .vjs-icon-placeholder::before {
+      position: relative;
+      height: 2em;
+      width: 2em;
+      display: grid;
+      place-content: center;
+    }
+
+    .video-js .vjs-big-play-button .vjs-icon-placeholder {
+      color: #e3e1cc;
+    }
+
+    .video-js .vjs-control-bar {
+      border-radius: 0 0 var(--border-radius) var(--border-radius);
+    }
+
+    .version {
+      display: flex;
+      flex-wrap: wrap;
+      list-style-type: none;
+      padding: 0;
+      gap: 0.5rem;
+      font-weight: bold;
+      font-size: 0.8em;
+      font-family: monospace;
+      color: #9f9f9f;
+      margin-block: 0.5rem;
+      margin-inline: 1rem 0;
+    }
+
+    .version a {
+      text-decoration: none;
+    }
+
+    .version a:hover {
+      background-color: transparent;
+    }
+
+    .version a:link,
+    .version a:visited,
+    .version a:hover {
+      color: inherit;
+    }
+
+    .version .bitmapsub a,
+    .version .videojs a {
+      display: block;
+      border-radius: var(--border-radius);
+      border: 2px solid #82ad82;
+      padding: 0.3rem 0.4rem;
+    }
+
+    .version .videojs a:hover,
+    .version .bitmapsub a:hover {
+      color: #4f4f4f;
+      background-color: #e3e1cc;
+      border-color: #e3e1cc;
+    }
+
+    .version .github {
+      display: grid;
+      place-content: center;
+      margin: 0;
+      padding: 0;
+      border: none;
+    }
+
+    .version .github img {
+      display: block;
+      width: calc(1em + 0.3rem + 4px);
+    }
+
+    @media screen and (max-width: 750px) {
+      main {
+        margin-inline: auto;
+        width: auto;
+      }
+
+      h1 {
+        padding-inline: 0;
+      }
+
+      ul.version {
+        margin-inline: 0
+      }
+
+      .video-js {
+        max-width: 100%;
+      }
+    }
+
+    .pastille {
+      position: absolute;
+      top: 2rem;
+      right: 2rem;
+      font-size: 2rem;
+      font-weight: bold;
+      font-family: monospace;
+      background-color: #ead235;
+      padding: 1.5rem;
+      border-radius: 3px;
+      opacity: 0.65;
+      display: none;
+      z-index: 10000;
+    }
+
+    .pastille.visible {
+      display: block;
+    }
+
+    .pastille.bmpsub-debug {
+      border: 3px dashed #dc143c88
     }
   </style>
 </head>
 
 <body>
+  <h1>Bitmapsub <span>video.js®</span><br />plugin <u>demo</u> page</h1>
+  <ul class="version">
+    <li class="github"><img src="github-mark.svg"></li>
+    <li class="videojs"><a href="https://github.com/videojs/video.js/"></a></li>
+    <li class="bitmapsub"><a href="https://github.com/goatscrub/videojs-bitmapsub/"></a></li>
+  </ul>
   <main>
 
     <section>
       <h2>DVD vobsub:</h2>
+      <p>Only one subtitle track: <code>francais</code></p>
       <video id="vobsub" class="video-js vjs-default-skin" controls>
-        <source src="/docs/samples/sample1.mp4" type="video/mp4" />
-        <track default src="/docs/samples/vobsub.fre.vtt" kind="metadata" label="vobsub:1920:français" language="fr" />
+        <source src="/videojs-bitmapsub/samples/vobsub-sample.mp4" type="video/mp4" />
+        <track default src="/videojs-bitmapsub/samples/vobsub.fre.vtt" kind="metadata" label="vobsub:1920:français" language="fr" />
       </video>
     </section>
 
     <section>
       <h2>Bluray pgssub:</h2>
+      <p>Two subtitle tracks: <code>english</code> & <code>français</code></p>
       <video id="pgssub" class="video-js vjs-default-skin" controls>
-        <source src="/docs/samples/sample2.mp4" type="video/mp4" />
-        <track src="/docs/samples/pgssub.eng.vtt" kind="metadata" label="pgssub:1920:english" language="en" />
-        <track default src="/docs/samples/pgssub.fre.vtt" kind="metadata" label="pgssub:1920:français" language="fr" />
+        <source src="/videojs-bitmapsub/samples/pgssub-sample.mp4" type="video/mp4" />
+        <track default src="/videojs-bitmapsub/samples/pgssub.eng.vtt" kind="metadata" label="pgssub:1920:english" language="en" />
+        <track src="/videojs-bitmapsub/samples/pgssub.fre.vtt" kind="metadata" label="pgssub:1920:français" language="fr" />
       </video>
     </section>
-
-    <script>
-      const commonOptions = {
-        fluid: true,
-        controls: true,
-      }
-
-      // vobsub
-      const vjsVobsubOpt = {
-        ...commonOptions,
-      };
-      const player_vobsub = videojs('vobsub', vjsVobsubOpt);
-      player_vobsub.bitmapSubtitle({ pathPrefix: '/docs/samples/' })
-
-      // subp
-      const vjsOptions = {
-        ...commonOptions,
-        plugins: {
-          bitmapSubtitle: { pathPrefix: '/docs/samples/' },
-        }
-      };
-      const player = videojs('pgssub', vjsOptions);
-    </script>
   </main>
+  <footer>Video.js is a registered trademark of <a href="https://www.brightcove.com/">Brightcove, Inc.</a></footer>
+  <div class="pastille">DEMO</div>
 </body>
+
+<script>
+  // append video.js and bitmapsub plugin version
+  document.querySelector('.version .videojs a').innerHTML = `video.js v${videojs.VERSION}`
+  document.querySelector('.version .bitmapsub a').innerHTML = `bitmapsub v${videojsBitmapsub.VERSION}`
+  // display pastille "environment" on localhost
+  const chunk = window.location.hostname.split('.')
+  if (['test', 'localhost'].includes(chunk[chunk.length - 1])) document.querySelector('.pastille').classList.add('visible')
+
+  // players
+  const commonOptions = {
+    fluid: true,
+    controls: false,
+  }
+
+  // vobsub
+  const vjsVobsubOpt = {
+    ...commonOptions,
+  };
+  const player_vobsub = videojs('vobsub', vjsVobsubOpt);
+  player_vobsub.bitmapsub({ pathPrefix: '/videojs-bitmapsub/samples/' })
+  window.p = player_vobsub
+
+  // subp
+  const vjsOptions = {
+    ...commonOptions,
+    plugins: {
+      bitmapsub: { pathPrefix: '/videojs-bitmapsub/samples/' },
+    }
+  };
+  const player = videojs('pgssub', vjsOptions);
+</script>
 
 </html>
