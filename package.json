@@ -31,7 +31,7 @@
     "watch:css": "npm run build:css -- -w",
     "watch:js": "npm run build:js -- -w",
     "prepublishOnly": "npm-run-all build-prod && vjsverify --verbose --skip-es-check",
-    "dev": "browser-sync start -c dev/browser-sync.config.js -s dev",
+    "dev": "browser-sync start -c scripts/browser-sync.config.dev.js -s dev",
     "dev:js": "npm run build:js -- -w",
     "dev:css": "npm run build:css -- -w",
     "watch:dev": "cross-env-shell GNUK_DEV_WATCH=1 npm-run-all -p dev:css dev:js",
