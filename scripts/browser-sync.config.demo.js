@@ -4,7 +4,8 @@
  */
 const workflow = '/home/gnuk/workflow/';
 const bitmapsub = `${workflow}videojs-bitmapsub/`;
-const debugJs = '<script src="../dev/debug.js"></script>';
+const debugJs = '<script src="../dev/debug.js" defer></script>';
+const devCss = '<link rel="stylesheet" href="../dev/dev.css">';
 const debugCss = '<link rel="stylesheet" href="../dev/debug.css">';
 
 module.exports = {
