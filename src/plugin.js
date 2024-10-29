@@ -100,8 +100,6 @@ class BitmapSubtitleContainer extends VjsComponent {
     super(player, options);
     this.player = player;
     this.options = options;
-    // Dynamic style for this component
-    this.buildDynamicStyle();
   }
 
   /**
@@ -115,23 +113,6 @@ class BitmapSubtitleContainer extends VjsComponent {
 
     container.appendChild(subtitle);
     return container;
-  }
-
-  /**
-   * Create dynamic styles for each plugin instance.
-   * Make it unique with helps of ${player.id}
-   *
-   * @return {Object} - unique DOM style element
-   *
-   */
-  buildDynamicStyle() {
-    const style = document.createElement('style');
-    const id = this.player.id();
-
-    style.id = `css-bitmap-${id}`;
-    style.textContent = `#${id} .bitmapsub-container{}`;
-    document.head.appendChild(style);
-    return style;
   }
 
   /**
