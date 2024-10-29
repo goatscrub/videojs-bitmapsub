@@ -24,6 +24,7 @@ module.exports = {
   directory: false,
   listen: 'demo.videojs-bitmapsub.test',
   startPath: 'videojs-bitmapsub',
+  online: false,
   snippetOptions: {
     // Provide a custom Regex for inserting the snippet.
     rule: {
@@ -32,5 +33,13 @@ module.exports = {
         return [debugJs, debugCss, snippet, match].join('\n');
       }
     }
-  }
+  },
+  rewriteRules: [
+    {
+      match: /https?:\/\/cdn\.jsdelivr\.net\/npm\/@goatscrub\/videojs-bitmapsub@latest\//ig,
+      fn(req, res, match) {
+        return '../';
+      }
+    }
+  ]
 };
