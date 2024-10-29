@@ -307,8 +307,8 @@ class BitmapSubtitle extends VjsPlugin {
     this.bitmapTracks = [];
     // Save current subtitle track with associated event listener state
     this.currentSubtitle = { listener: false, track: false };
-    this.appendComponent();
 
+    this.player.one('ready', this.appendComponent.bind(this));
     this.player.on('loadeddata', e => {
       this.updateBitmapMenu();
       ['addtrack', 'removetrack']
@@ -338,15 +338,15 @@ class BitmapSubtitle extends VjsPlugin {
 
     // Third: append bitmap menu into video.js controlbar
     this.bmpsubMenu = new BitmapMenuButton(this.player);
-    this.bmpsubVideoWindow.addChild(this.bmpsubContainer);
 
-    this.player.addChild(this.bmpsubVideoWindow);
+    // if player have controls enabled
+    if (this.player.controls()) {
+      // Place bmpsubMenuButton after SubsCapsMenuButton
+      const bitmapMenuButtonPlacement = this.player.controlBar.children()
+        .indexOf(this.player.controlBar.subsCapsButton) + 1;
 
-    // Place bmpsubMenuButton after SubsCapsMenuButton
-    const bitmapMenuButtonPlacement = this.player.controlBar.children()
-      .indexOf(this.player.controlBar.subsCapsButton) + 1;
-
-    this.player.controlBar.addChild(this.bmpsubMenu, null, bitmapMenuButtonPlacement);
+      this.player.controlBar.addChild(this.bmpsubMenu, null, bitmapMenuButtonPlacement);
+    }
   }
 
   /**
