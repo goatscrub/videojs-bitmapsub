@@ -269,6 +269,7 @@ class BitmapVideoWindow extends VjsComponent {
     // After that, component is considered ready ; run only once.
     this.trigger('ready');
     this.off('ready');
+    this.trigger('videowindowresize');
   }
 }
 
@@ -314,10 +315,6 @@ class BitmapSubtitle extends VjsPlugin {
         .forEach(eventName => this.player.textTracks().on(eventName, evt => {
           this.updateBitmapMenu();
         }));
-      // First scale at loadeddata
-      this.scaleSubtitle();
-      // Append listener for video size changes
-      this.player.on('playerresize', () => this.scaleSubtitle());
     });
   }
 
@@ -332,6 +329,13 @@ class BitmapSubtitle extends VjsPlugin {
     this.bmpsubContainer = new BitmapSubtitleContainer(this.player);
     // get reference of bitmap subtitle element
     this.subtitleElement = this.bmpsubContainer.el().querySelector('.bitmap-subtitle');
+    this.bmpsubVideoWindow.addChild(this.bmpsubContainer);
+    this.player.addChild(this.bmpsubVideoWindow);
+    // Initialize bitmap subtitle video window size when component completely ready.
+    this.bmpsubVideoWindow.one('ready', this.scaleSubtitle.bind(this));
+    // Append listener for video size changes
+    this.bmpsubVideoWindow.on('videowindowresize', this.scaleSubtitle.bind(this));
+
     // Third: append bitmap menu into video.js controlbar
     this.bmpsubMenu = new BitmapMenuButton(this.player);
     this.bmpsubVideoWindow.addChild(this.bmpsubContainer);
