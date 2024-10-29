@@ -1,5 +1,4 @@
 import videojs from 'video.js';
-import { document } from 'global';
 import { version as VERSION } from '../package.json';
 const VjsComponent = videojs.getComponent('Component');
 const VjsPlugin = videojs.getPlugin('plugin');
