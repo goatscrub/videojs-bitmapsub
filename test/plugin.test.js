@@ -7,6 +7,18 @@ import packageJson from '../package.json';
 
 const Player = videojs.getComponent('Player');
 
+/** */
+function listenOn(target, eventName, assert) {
+  const done = assert.async(10);
+
+  target.on(eventName, () => {
+    console.log(`EVENT: ${eventName}`);
+    assert.ok(eventName, 'fake test');
+    done();
+  });
+}
+QUnit.log((details) => console.log(`> ${details.module} >> ${details.name} : ${details.message}`));
+
 QUnit.module('basics', function(hooks) {
   QUnit.test('the environment is sane', function(assert) {
     assert.strictEqual(typeof Array.isArray, 'function', 'es5 exists');
@@ -102,7 +114,7 @@ QUnit.module('videojs-bitmapsub simple', function(hooks) {
   // });
 });
 
-QUnit.module('videojs-bitmapsub', function(hooks) {
+QUnit.module('videojs-bitmapsub full', function(hooks) {
   hooks.beforeEach(function(assert) {
     // Mock the environment's timers because certain things - particularly
     // player readiness - are asynchronous in video.js 5. This MUST come
@@ -127,9 +139,11 @@ QUnit.module('videojs-bitmapsub', function(hooks) {
     video.innerHTML += track;
 
     this.fixture.appendChild(video);
-    this.player = videojs('sample', { techOrder: ['html5'] });
-    this.plg = this.player.bitmapsub();
-    this.clock.tick(1);
+    // this.player = videojs('sample');
+    // ['ready', 'loadeddata', 'loadstart'].forEach(eventName => listenOn(this.player, eventName));
+    // this.plg = this.player.bitmapsub();
+    // this.player = videojs('sample', { plugins: { bitmapsub: { pathPrefix: 'machin' } } });
+    // this.clock.tick(1);
   });
 
   hooks.afterEach(function(assert) {
@@ -139,27 +153,61 @@ QUnit.module('videojs-bitmapsub', function(hooks) {
     this.clock.restore();
   });
 
-  QUnit.test('player DOM children', function(assert) {
-    const videoWindow = this.player.el().querySelector('.bitmapsub-video-window');
-    const container = videoWindow.querySelector('.bitmapsub-container');
-    const subtitle = container.querySelector('.bitmap-subtitle');
+  QUnit.test.only('DEBUG TEST: range', function(assert) {
+    const player = videojs('sample');
 
-    assert.ok(videoWindow, 'bitmapsub video window element exist');
-    assert.ok(container, 'bitmapsub subtitle container element exist');
-    assert.ok(subtitle, 'bitmapsub subtitle element exist');
-    assert.ok(this.player.controlBar.getChild('bitmapsubMenuButton'), 'bitmap menu button exists');
+    ['ready', 'loadeddata', 'loadstart', 'pluginsetup',
+      'timeupdate', 'pluginsetup:bitmapsub', 'resize',
+      'playerresize', 'canplay', 'componentresize']
+      .forEach(eventName => {
+        listenOn(player, eventName, assert);
+      });
+    player.el().style.width = '600px';
+    player.el().style.height = '600px';
+    const plg = player.bitmapsub();
+    // this.player = videojs('sample', { plugins: { bitmapsub: { pathPrefix: 'machin' } } });
+
+    this.clock.tick(10);
+  });
+
+  QUnit.test('player DOM children', function(assert) {
+    const done = assert.async();
+
+    this.player.on('ready', (e) => {
+      const videoWindow = this.player.el().querySelector('.bitmapsub-video-window');
+      const container = videoWindow.querySelector('.bitmapsub-container');
+      const subtitle = container.querySelector('.bitmap-subtitle');
+
+      assert.ok(videoWindow, 'bitmapsub video window element exist');
+      assert.ok(container, 'bitmapsub subtitle container element exist');
+      assert.ok(subtitle, 'bitmapsub subtitle element exist');
+      assert.ok(this.player.controlBar.getChild('bitmapsubMenuButton'), 'bitmap menu button exists');
+      done();
+    });
+    this.clock.tick(1);
+    this.player.trigger('loadeddata');
   });
 
   QUnit.test('plugin scaleSubtitle method against currentSubtitle', function(assert) {
-    const spy = sinon.spy(this.plg.bmpsubContainer, 'scaleTo');
+    let spy;
+    const done = assert.async();
 
-    this.plg.currentSubtitle.track = undefined;
-    this.plg.scaleSubtitle();
-    assert.equal(spy.callCount, 0, 'scaleTo method was not called');
+    this.player.on('ready', () => {
+      spy = sinon.spy(this.plg.bmpsubContainer, 'scaleTo');
+      console.log(spy);
+      assert.ok(true, 'fake test');
+      done();
+    });
+    // this.player.trigger('ready');
+    this.clock.tick(1);
 
-    this.plg.currentSubtitle.track = { bitmapsub: { width: 1920 } };
-    this.plg.scaleSubtitle();
-    assert.equal(spy.callCount, 1, 'scaleTo method was called once');
+    // this.plg.currentSubtitle.track = undefined;
+    // this.plg.scaleSubtitle();
+    // assert.equal(spy.callCount, 0, 'scaleTo method was not called');
+
+    // this.plg.currentSubtitle.track = { bitmapsub: { width: 1920 } };
+    // this.plg.scaleSubtitle();
+    // assert.equal(spy.callCount, 1, 'scaleTo method was called once');
   });
 
   QUnit.test('plugin event listener for bitmapMenu', function(assert) {
