@@ -346,6 +346,7 @@ class BitmapSubtitle extends VjsPlugin {
 
       this.player.controlBar.addChild(this.bmpsubMenu, null, bitmapMenuButtonPlacement);
     }
+    this.trigger('ready');
   }
 
   /**
