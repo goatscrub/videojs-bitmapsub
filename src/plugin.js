@@ -131,12 +131,19 @@ class BitmapSubtitleContainer extends VjsComponent {
    * @param {string} variation - "pgssub" or "vobsub"
    */
   setBitmapVariation(variation) {
-    if (variation === 'pgssub') {
-      this.removeClass('vobsub');
-      this.addClass('pgssub');
-    } else {
-      this.addClass('vobsub');
-      this.removeClass('pgssub');
+    switch (variation) {
+      case 'pgssub':
+        this.removeClass('vobsub');
+        this.addClass('pgssub');
+        break;
+      case 'vobsub':
+        this.addClass('vobsub');
+        this.removeClass('pgssub');
+        break;
+      case false:
+        this.removeClass('pgssub');
+        this.removeClass('vobsub');
+        break;
     }
   }
 
@@ -178,7 +185,7 @@ class BitmapVideoWindow extends VjsComponent {
     this.videoSize = {};
     // video size available since "canplay" event
     this.player.on('canplay', this.loadVideoSize.bind(this));
-      this.player.on('playerresize', this.setVideoWindowProperties.bind(this));
+    this.player.on('playerresize', this.setVideoWindowProperties.bind(this));
   }
 
   /**
@@ -301,8 +308,8 @@ class BitmapSubtitle extends VjsPlugin {
   }
 
   /**
- * Append bitmap subtitle extra plugin components to video.js UI
- */
+  * Append bitmap subtitle extra plugin components to video.js UI
+  */
   appendComponent() {
     // Instantiate Bitmap Subtitle Components
     // First: global video window element
@@ -333,8 +340,8 @@ class BitmapSubtitle extends VjsPlugin {
   }
 
   /**
- * Populate bitmap subtitle menu with track items if any
- */
+  * Populate bitmap subtitle menu with track items if any
+  */
   updateBitmapMenu() {
     this.bitmapTracks = this.getBitmapTracks();
     this.bmpsubMenu.menuItems = this.buildTrackMenuItems();
@@ -342,12 +349,12 @@ class BitmapSubtitle extends VjsPlugin {
   }
 
   /**
- * Returns a list of textTrack from all tracks filtered by kind
- * 'metadata' type and label starting with 'pgssub' or 'vobsub'
- * prefix.
- *
- * @return {textTracks[]} - list of filtered textTracks
- */
+  * Returns a list of textTrack from all tracks filtered by kind
+  * 'metadata' type and label starting with 'pgssub' or 'vobsub'
+  * prefix.
+  *
+  * @return {textTracks[]} - list of filtered textTracks
+  */
   getBitmapTracks() {
     const allTracks = this.player.textTracks();
     const bitmapTracks = [];
@@ -361,12 +368,12 @@ class BitmapSubtitle extends VjsPlugin {
   }
 
   /**
- * Extra controls items for bitmap subtitle menu:
- *  - settings panel
- *  - off bitmap subtitle
- *
- * @return {MenuItem[]} - settings and off menu items
- */
+  * Extra controls items for bitmap subtitle menu:
+  *  - settings panel
+  *  - off bitmap subtitle
+  *
+  * @return {MenuItem[]} - settings and off menu items
+  */
   menuControlItems() {
     const offBitmapOptions = { label: 'Bitmap Off', name: 'bitmap-off', id: 'bitmap-off' };
     const offBitmap = new VjsMenuItem(this.player, offBitmapOptions);
@@ -381,6 +388,8 @@ class BitmapSubtitle extends VjsPlugin {
       offBitmap.addClass('vjs-selected');
       // Hide bitmap subtitle container
       this.bmpsubContainer.hide();
+      // Remove container bitmap variation class
+      this.bmpsubContainer.setBitmapVariation(false);
       // Remove handler on this.currentSubtitle.track
       this.listenCueChange(false);
     };
@@ -388,11 +397,11 @@ class BitmapSubtitle extends VjsPlugin {
   }
 
   /**
- * Compute bitmap track menu items and its corresponding
- * click handler for bitmap subtitle menu
- *
- * @return {textTrackMenuItem[]} - list of textTrackMenuItem filtered
- */
+  * Compute bitmap track menu items and its corresponding
+  * click handler for bitmap subtitle menu
+  *
+  * @return {textTrackMenuItem[]} - list of textTrackMenuItem filtered
+  */
   buildTrackMenuItems() {
     let items = [];
 
@@ -439,13 +448,13 @@ class BitmapSubtitle extends VjsPlugin {
   }
 
   /**
- * From a large image of tiled bitmap subtitle, pick up one
- * of them by creating a mask window around it.
- * Subtitle container visibility is related to current track.activeCue.
- *
- * Metadata track current cue define window size and position as
- * following format: bitmap_image.png:width:height:driftX:driftY
- */
+  * From a large image of tiled bitmap subtitle, pick up one
+  * of them by creating a mask window around it.
+  * Subtitle container visibility is related to current track.activeCue.
+  *
+  * Metadata track current cue define window size and position as
+  * following format: bitmap_image.png:width:height:driftX:driftY
+  */
   updateSubtitle() {
     if (this.currentSubtitle.track.activeCues.length) {
       // Bitmap subtitle become visible
@@ -464,10 +473,10 @@ class BitmapSubtitle extends VjsPlugin {
   }
 
   /**
- * Append or remove 'cuechange' event listener on current track
- *
- * @param {boolean} [state=true] - true: append, false: remove if this.currentSubtitle.listener
- */
+  * Append or remove 'cuechange' event listener on current track
+  *
+  * @param {boolean} [state=true] - true: append, false: remove if this.currentSubtitle.listener
+  */
   listenCueChange(state = true) {
     if (state) {
       this.currentSubtitle.track.addEventListener('cuechange', this.updateSubtitle.bind(this));
@@ -479,10 +488,10 @@ class BitmapSubtitle extends VjsPlugin {
   }
 
   /**
- * Change bitmap subtitle to track with id ${id}
- *
- * @param {string} id - track id
- */
+  * Change bitmap subtitle to track with id ${id}
+  *
+  * @param {string} id - track id
+  */
   changeToTrack(id) {
     this.bitmapTracks.forEach(track => {
       if (track.id !== id) {
@@ -499,8 +508,8 @@ class BitmapSubtitle extends VjsPlugin {
   }
 
   /**
-   * Scale subtitle container against current displayed video witdh
-   */
+  * Scale subtitle container against current displayed video witdh
+  */
   scaleSubtitle() {
     if (!this.currentSubtitle.track) {
       return;
@@ -511,9 +520,9 @@ class BitmapSubtitle extends VjsPlugin {
   }
 
   /**
-   * Listeners cleanup on dispose event.
-   * Remove textTracks listener to avoid videojs player error on dipose event.
-   */
+  * Listeners cleanup on dispose event.
+  * Remove textTracks listener to avoid videojs player error on dipose event.
+  */
   dispose() {
     ['addtrack', 'removetrack']
       .forEach(eventName => this.player.textTracks().off(eventName));
@@ -522,10 +531,10 @@ class BitmapSubtitle extends VjsPlugin {
   }
 
   /**
-   * Tell if plugin is disposed or not.
-   *
-   * @return {boolean} disposed or not
-   */
+  * Tell if plugin is disposed or not.
+  *
+  * @return {boolean} disposed or not
+  */
   isDisposed() {
     return this._isDisposed;
   }
