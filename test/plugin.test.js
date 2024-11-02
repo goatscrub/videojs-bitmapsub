@@ -5,6 +5,7 @@ import videojs from 'video.js';
 import BitmapSubtitle from '../src/plugin';
 import packageJson from '../package.json';
 
+const ALL_EVENTS = ['abort', 'addtrack', 'aftermodalfill', 'audiotrackchange', 'beforemodalclose', 'beforemodalempty', 'beforemodalfill', 'beforemodalopen', 'beforepluginsetup', 'beforepluginsetup:bitmapsub', 'canplay', 'canplaythrough', 'change', 'close', 'componentresize', 'controlsdisabled', 'controlsenabled', 'dispose', 'durationchange', 'emptied', 'ended', 'enterFullWindow', 'enterpictureinpicture', 'error', 'exitFullWindow', 'fullscreenchange', 'labelchange', 'languagechange', 'leavepictureinpicture', 'loadeddata', 'loadedmetadata', 'loadstart', 'modalclose', 'modalempty', 'modalfill', 'modalKeydown', 'modalopen', 'modechange', 'pause', 'play', 'playbackrateschange', 'playerresize', 'playing', 'pluginsetup', 'pluginsetup:bitmapsub', 'posterchange', 'progress', 'ratechange', 'ready', 'removetrack', 'resize', 'seeked', 'seeking', 'selectedchange', 'slideractive', 'sliderinactive', 'sourceset', 'stalled', 'statechanged', 'suspend', 'tap', 'textdata', 'texttrackchange', 'timeupdate', 'useractive', 'userinactive', 'usingcustomcontrols', 'usingnativecontrols', 'videotrackchange', 'volumechange', 'vttjsloaded', 'waiting'];
 const Player = videojs.getComponent('Player');
 
 /** listen eventName on target
@@ -13,6 +14,7 @@ const Player = videojs.getComponent('Player');
  * @param {string} eventName eventName
  * @param {Assert} assert assert
 */
+
 function listenOn(target, eventName, assert) {
   const done = assert.async(10);
 
@@ -51,6 +53,7 @@ QUnit.module('videojs-bitmapsub simple', function(hooks) {
     video.className = 'video-js';
     this.fixture.appendChild(video);
   });
+
   hooks.afterEach(function(assert) {
     this.clock.restore();
   });
@@ -83,7 +86,7 @@ QUnit.module('videojs-bitmapsub simple', function(hooks) {
     const spy = sinon.spy(BitmapSubtitle.prototype, 'dispose');
     const done = assert.async();
     const player = videojs('sample');
-    const plg = player.bitmapsub(player);
+    const plg = player.bitmapsub();
 
     plg.on('dispose', event => {
       assert.equal(spy.callCount, 1, 'plugin dispose when player dispose method is called');
@@ -133,7 +136,7 @@ QUnit.module('videojs-bitmapsub full', function(hooks) {
     const source = document.createElement('source');
     let track = '';
 
-    source.setAttribute('src', '../../docs/samples/sample1.mp4');
+    source.setAttribute('src', '../../docs/samples/vobsub-sample.mp4');
     source.setAttribute('type', 'video/mp4');
     track += '<track default src="../../docs/samples/vobsub.fre.vtt" kind="metadata" label="vobsub:720:Français" language="fre">';
     track += '<track src="../../docs/samples/vobsub.fre.vtt" kind="metadata" label="not handle" language="fre">';
@@ -142,11 +145,20 @@ QUnit.module('videojs-bitmapsub full', function(hooks) {
     video.innerHTML += track;
 
     this.fixture.appendChild(video);
-    // this.player = videojs('sample');
-    // ['ready', 'loadeddata', 'loadstart'].forEach(eventName => listenOn(this.player, eventName));
-    // this.plg = this.player.bitmapsub();
-    // this.player = videojs('sample', { plugins: { bitmapsub: { pathPrefix: 'machin' } } });
-    // this.clock.tick(1);
+    this.player = videojs('sample');
+    this.plg = this.player.bitmapsub({ pathPrefix: '../../docs/samples' });
+
+    /** forward clock tick by number of ticks
+     *
+     * @param {number} ticks - number of ticks to forward clock
+     */
+    /*
+    const forward = (ticks) => {
+      for (let i = 0; i < ticks; i++) {
+        this.clock.tick(1);
+      }
+    };
+    */
   });
 
   hooks.afterEach(function(assert) {
@@ -157,38 +169,34 @@ QUnit.module('videojs-bitmapsub full', function(hooks) {
   });
 
   QUnit.test('player DOM children', function(assert) {
-    const player = videojs('sample', { plugins: { bitmapsub: {} } });
     const done = assert.async();
 
-    player.on('ready', (e) => {
-      const videoWindow = player.el().querySelector('.bitmapsub-video-window');
+    this.player.on('ready', (e) => {
+      const videoWindow = this.player.el().querySelector('.bitmapsub-video-window');
       const container = videoWindow.querySelector('.bitmapsub-container');
       const subtitle = container.querySelector('.bitmap-subtitle');
 
       assert.ok(videoWindow, 'bitmapsub video window element exist');
       assert.ok(container, 'bitmapsub subtitle container element exist');
       assert.ok(subtitle, 'bitmapsub subtitle element exist');
-      assert.ok(player.controlBar.getChild('bitmapsubMenuButton'), 'bitmap menu button exists');
+      assert.ok(this.player.controlBar.getChild('bitmapsubMenuButton'), 'bitmap menu button exists');
       done();
     });
     this.clock.tick(10);
-    player.dispose();
   });
 
   QUnit.test('plugin scaleSubtitle method against currentSubtitle', function(assert) {
     const done = assert.async();
-    const player = videojs('sample');
-    const plg = player.bitmapsub();
 
-    player.on('ready', () => {
-      const spy = sinon.spy(plg.bmpsubContainer, 'scaleTo');
+    this.player.on('ready', () => {
+      const spy = sinon.spy(this.plg.bmpsubContainer, 'scaleTo');
 
-      plg.currentSubtitle.track = undefined;
-      plg.scaleSubtitle();
+      this.plg.currentSubtitle.track = undefined;
+      this.plg.scaleSubtitle();
       assert.equal(spy.callCount, 0, 'scaleTo method was not called');
 
-      plg.currentSubtitle.track = { bitmapsub: { width: 1920 } };
-      plg.scaleSubtitle();
+      this.plg.currentSubtitle.track = { bitmapsub: { width: 1920 } };
+      this.plg.scaleSubtitle();
       assert.equal(spy.callCount, 1, 'scaleTo method was called once');
       done();
       spy.restore();
@@ -196,33 +204,183 @@ QUnit.module('videojs-bitmapsub full', function(hooks) {
     this.clock.tick(10);
   });
 
-  QUnit.test('updateBitmapMenu', function(assert) {
-    assert.expect(10);
+  QUnit.test('updateBitmapMenu & item selection', function(assert) {
+    assert.expect(15);
     const done = assert.async();
-    const player = videojs('sample');
-    const plg = player.bitmapsub();
-    const spy = sinon.spy(plg, 'updateBitmapMenu');
+    const spy = sinon.spy(this.plg, 'updateBitmapMenu');
 
     assert.equal(spy.callCount, 0, 'updateBitmapMenu not already called');
 
-    player.on('loadeddata', e => {
-      assert.equal(plg.bitmapTracks.length, 2, 'number of bitmap tracks');
-      assert.equal(plg.bitmapTracks[0].mode, 'hidden', 'default track has mode "hidden"');
-      assert.equal(plg.bitmapTracks[1].mode, 'disabled', 'default track has mode "disabled"');
-      assert.equal(plg.bitmapTracks[0].bitmapsub.width, '720', 'bitmapsub width "720"');
-      assert.equal(plg.bitmapTracks[1].bitmapsub.width, '1920', 'bitmapsub width "1920"');
+    this.player.on('loadeddata', e => {
+      assert.equal(this.plg.bitmapTracks.length, 2, 'number of bitmap tracks');
+      assert.equal(this.plg.bitmapTracks[0].mode, 'hidden', 'default track has mode "hidden"');
+      assert.equal(this.plg.bitmapTracks[1].mode, 'disabled', 'default track has mode "disabled"');
+      assert.equal(this.plg.bitmapTracks[0].bitmapsub.width, '720', 'bitmapsub width "720"');
+      assert.equal(this.plg.bitmapTracks[1].bitmapsub.width, '1920', 'bitmapsub width "1920"');
 
       assert.equal(spy.callCount, 1, 'updateBitmapMenu called on plugin initialization');
-      player.textTracks().trigger('addtrack');
+      this.player.textTracks().trigger('addtrack');
       assert.equal(spy.callCount, 2, 'updateBitmapMenu after addtrack event');
-      player.textTracks().trigger('change');
+      this.player.textTracks().trigger('change');
       assert.equal(spy.callCount, 2, 'updateBitmapMenu not called with change event');
-      player.textTracks().trigger('removetrack');
+      this.player.textTracks().trigger('removetrack');
       assert.equal(spy.callCount, 3, 'updateBitmapMenu after removetrack event');
+
+      assert.true(this.plg.bmpsubContainer.el().classList.contains('vobsub'), 'container className "vobsub" present');
+      // Click on first menu item, first one is "bitmap-off"
+      this.plg.bmpsubMenu.menu.children()[0].handleClick();
+      assert.false(this.plg.bmpsubContainer.el().classList.contains('vobsub'), 'container className "vobsub" absent');
+      assert.false(this.plg.bmpsubContainer.el().classList.contains('pgssub'), 'container className "pgssub" absent');
+      // Click on second item, second one is "vobsub" metadata track
+      this.plg.bmpsubMenu.menu.children()[1].handleClick();
+      assert.true(this.plg.bmpsubContainer.el().classList.contains('vobsub'), 'container className "vobsub" present');
+      // Click on third item, third one is "pgssub" metadata track
+      this.plg.bmpsubMenu.menu.children()[2].handleClick();
+      assert.true(this.plg.bmpsubContainer.el().classList.contains('pgssub'), 'container className "pgssub" present');
       done();
       spy.restore();
     });
 
     this.clock.tick(10);
+  });
+
+  QUnit.test('Video window size', function(assert) {
+    const done = assert.async();
+    let currentCall = 1;
+    let expectedValues = {};
+
+    const testProperties = (values, reference = '') => {
+      Object.keys(values).forEach(property => {
+        assert.equal(
+          this.plg.bmpsubVideoWindow.el().style.getPropertyValue(property),
+          values[property],
+          `${currentCall}${reference}|style property ${property}="${values[property]}"`
+        );
+      });
+      currentCall += 1;
+    };
+
+    this.clock.tick(50);
+
+    this.player.on('canplay', e => {
+      // player initial size
+      expectedValues = {
+        'width': '', 'height': '',
+        'top': '', 'left': '',
+        '--padding': '', '--adjustment': ''
+      };
+      testProperties(expectedValues, '@initial');
+
+      // Change video player size ; wide
+      [this.player.el().style.width, this.player.el().style.height] = ['500px', '200px'];
+      expectedValues = {
+        'width': '356px',
+        'height': '200px',
+        'top': '0px',
+        'left': '72px',
+        '--padding': '6.25px',
+        '--adjustment': '30px'
+      };
+      // trigger event to run corresponding plugin method
+      this.player.trigger('playerresize');
+      testProperties(expectedValues, '@wide');
+
+      // Change video player size ; tall
+      [this.player.el().style.width, this.player.el().style.height] = ['300px', '250px'];
+      expectedValues = {
+        'width': '300px',
+        'height': '169px',
+        'top': '41px',
+        'left': '0px',
+        '--padding': '5.28125px',
+        '--adjustment': '0px'
+      };
+      // trigger event to run corresponding plugin method
+      this.player.trigger('playerresize');
+      testProperties(expectedValues, '@tall');
+
+      // Change video player size ; tall with adjustment
+      [this.player.el().style.width, this.player.el().style.height] = ['300px', '200px'];
+      expectedValues = {
+        'width': '300px',
+        'height': '169px',
+        'top': '16px',
+        'left': '0px',
+        '--padding': '5.28125px',
+        '--adjustment': '14px'
+      };
+      // trigger event to run corresponding plugin method
+      this.player.trigger('playerresize');
+      testProperties(expectedValues, '@tall+adjustment');
+
+      // Change video player size to the video size
+      [this.player.el().style.width, this.player.el().style.height] = [this.player.videoWidth() + 'px', this.player.videoHeight() + 'px'];
+      // [player.el().style.width, player.el().style.height] = ['100px', '100px'];
+      expectedValues = {
+        'width': '640px',
+        'height': '360px',
+        'top': '0px',
+        'left': '0px',
+        '--padding': '11.25px',
+        '--adjustment': '30px'
+      };
+      this.player.trigger('playerresize');
+      testProperties(expectedValues, '@video size');
+      done();
+    });
+  });
+
+  QUnit.test.only('updateSubtitle', function(assert) {
+    const [player, plg, clock] = [this.player, this.plg, this.clock];
+    const done = assert.async();
+    const spy = sinon.spy(plg, 'updateSubtitle');
+    let currentCall = 0;
+
+    const testProperties = (target, values, reference = '') => {
+      currentCall += 1;
+      console.log(target.style.cssText);
+      Object.keys(values).forEach(property => {
+        assert.equal(
+          target.style.getPropertyValue(property),
+          values[property],
+          `${currentCall}${reference}|inlineStyle property ${property}="${values[property]}"`
+        );
+      });
+    };
+
+    player.on('loadeddata', event => {
+      // Default track is index 0 and a bitmap one
+      const tt = player.textTracks()[0];
+      let expectedValues;
+
+      plg.currentSubtitle.track.on('cuechange', e => {
+        assert.equal(spy.callCount, 1, 'updateSubtitle() called once');
+
+        // test CSS properties on subtitle container element
+        expectedValues = { scale: 0.33, opacity: 1 };
+        testProperties(plg.bmpsubContainer.el(), expectedValues, '-container');
+
+        // test CSS properties on subtitle element
+        expectedValues = {
+          'width': '619px', 'height': '54px',
+          'background-image': 'url(\"../../docs/samples/sample1.01.vobsub.png\")',
+          'background-position': '-1620px -290px'
+        };
+        console.log(plg.subtitleElement);
+        testProperties(plg.subtitleElement, expectedValues, '-subtitleElement');
+
+        done();
+      });
+      player.el().style.width = '640px';
+      player.el().style.height = '360px';
+      player.trigger('playerresize');
+      plg.bmpsubVideoWindow.trigger('videowindowresize');
+      console.log(plg.bmpsubVideoWindow.el().style.cssText);
+      clock.tick(10);
+      // fake first cue active
+      player.currentTime(2);
+      tt.trigger('cuechange');
+    });
+    clock.tick(50);
   });
 });
