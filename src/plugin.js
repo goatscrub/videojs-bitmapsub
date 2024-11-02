@@ -159,7 +159,6 @@ class BitmapSubtitleContainer extends VjsComponent {
  * Actually does not work with picture-in-picture mode.
  */
 class BitmapVideoWindow extends VjsComponent {
-
   /** Bitmap Video Window component constructor
   *
   * @param  {Player} player - A Video.js Player instance.
@@ -176,13 +175,10 @@ class BitmapVideoWindow extends VjsComponent {
 
     this.options = options;
     this.player = player;
-    [this.playerSize, this.videoSize] = [{}, {}];
-    this.player.on('loadeddata', e => {
-      this.setVideoSize();
-      // Before first play, controlBar height was 0
-      this.player.one('play', this.setVideoWindowProperties.bind(this));
+    this.videoSize = {};
+    // video size available since "canplay" event
+    this.player.on('canplay', this.loadVideoSize.bind(this));
       this.player.on('playerresize', this.setVideoWindowProperties.bind(this));
-    });
   }
 
   /**
@@ -196,23 +192,13 @@ class BitmapVideoWindow extends VjsComponent {
   }
 
   /**
-   * Save current video size into this.videoSize
+   * Save current video size into this.videoSize.
+   * player.videoWidth and player.videoHeight available since "canplay" event
    * {width:int , height: int and ratio:int}
    */
-  setVideoSize() {
+  loadVideoSize() {
     this.videoSize = { width: this.player.videoWidth(), height: this.player.videoHeight() };
     this.videoSize.ratio = this.videoSize.width / this.videoSize.height;
-  }
-
-  /**
-   * Save player size into this.playerSize. Can be different from videoSize
-   * {width:int, height:int, ratio:int}
-  */
-  setPlayerSize() {
-    const { width, height } = this.player.el().getBoundingClientRect();
-
-    [this.playerSize.width, this.playerSize.height] = [width, height];
-    this.playerSize.ratio = this.playerSize.width / this.playerSize.height;
   }
 
   /**
@@ -227,31 +213,30 @@ class BitmapVideoWindow extends VjsComponent {
    * and trigger corresponding event.
    */
   setVideoWindowProperties() {
-    // update player size informations
-    this.setPlayerSize();
+    // Update player ratio
+    const playerRatio = this.player.currentWidth() / this.player.currentHeight();
 
     let [videoWindowWidth, videoWindowHeight, videoWindowLeft, videoWindowTop, adjustment] = [0, 0, 0, 0, 0];
-    const ctrlBarHeight = this.player.controlBar.height();
 
     // Test for black bars around video window
-    if (this.videoSize.ratio > this.playerSize.ratio) {
+    if (this.videoSize.ratio > playerRatio) {
       // Horizontal black bars, player taller than video
-      videoWindowWidth = this.playerSize.width;
+      videoWindowWidth = this.player.currentWidth();
       videoWindowHeight = Math.round(videoWindowWidth / this.videoSize.ratio);
-      videoWindowTop = Math.round((this.playerSize.height - videoWindowHeight) / 2);
+      videoWindowTop = Math.round((this.player.currentHeight() - videoWindowHeight) / 2);
       // Compute control bar adjustment.
       // Append adjustment if horizontal black bars height
       // are smaller than player[ControlBar] height
-      if (videoWindowTop < ctrlBarHeight) {
-        adjustment = ctrlBarHeight - videoWindowTop;
+      if (videoWindowTop < this.player.controlBar.currentHeight()) {
+        adjustment = this.player.controlBar.currentHeight() - videoWindowTop;
       }
     } else {
       // Vertical black bars, player is wider than video.
       // No adjustment needed in this context
-      videoWindowHeight = this.playerSize.height;
+      videoWindowHeight = this.player.currentHeight();
       videoWindowWidth = Math.round(videoWindowHeight * this.videoSize.ratio);
-      videoWindowLeft = Math.round((this.playerSize.width - videoWindowWidth) / 2);
-      adjustment = ctrlBarHeight;
+      videoWindowLeft = Math.round((this.player.currentWidth() - videoWindowWidth) / 2);
+      adjustment = this.player.controlBar.currentHeight();
     }
     // Append extra arbitrary height to subtitle's padding
     const padding = videoWindowHeight / 32;
@@ -268,6 +253,7 @@ class BitmapVideoWindow extends VjsComponent {
     // After that, component is considered ready ; run only once.
     this.trigger('ready');
     this.off('ready');
+    // after each size changes
     this.trigger('videowindowresize');
   }
 }
@@ -310,10 +296,7 @@ class BitmapSubtitle extends VjsPlugin {
     this.player.one('ready', this.appendComponent.bind(this));
     this.player.on('loadeddata', e => {
       this.updateBitmapMenu();
-      ['addtrack', 'removetrack']
-        .forEach(eventName => this.player.textTracks().on(eventName, evt => {
-          this.updateBitmapMenu();
-        }));
+      this.player.textTracks().on(['addtrack', 'removetrack'], this.updateBitmapMenu.bind(this));
     });
   }
 
@@ -389,12 +372,7 @@ class BitmapSubtitle extends VjsPlugin {
     const offBitmap = new VjsMenuItem(this.player, offBitmapOptions);
 
     offBitmap.handleClick = () => {
-      const menu = this.bmpsubMenu.menu;
-
-      // Deselect all items from bitmap menu items
-      menu.children().forEach(item => {
-        item.removeClass('vjs-selected');
-      });
+      this.bmpsubMenu.deselectItems();
       // Disable all tracks from this.bitmapTracks
       this.bitmapTracks.forEach(track => {
         track.mode = 'disabled';
@@ -431,7 +409,7 @@ class BitmapSubtitle extends VjsPlugin {
         }
       });
 
-      // Append native bitmap subtitle video size
+      // Append native bitmap subtitle video size property
       track.bitmapsub = { width: videoSize };
 
       if (track.default) {
