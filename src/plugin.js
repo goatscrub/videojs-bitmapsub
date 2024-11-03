@@ -131,6 +131,7 @@ class BitmapSubtitleContainer extends VjsComponent {
    * @param {string} variation - "pgssub" or "vobsub"
    */
   setBitmapVariation(variation) {
+    /* eslint indent: ["error", 2, {"SwitchCase":1}] */
     switch (variation) {
       case 'pgssub':
         this.removeClass('vobsub');
@@ -145,6 +146,7 @@ class BitmapSubtitleContainer extends VjsComponent {
         this.removeClass('vobsub');
         break;
     }
+    /* eslint-enable indent */
   }
 
   /**
@@ -514,7 +516,7 @@ class BitmapSubtitle extends VjsPlugin {
     if (!this.currentSubtitle.track) {
       return;
     }
-    const scaleSize = (this.bmpsubVideoWindow.dimension('width') / this.currentSubtitle.track.bitmapsub.width).toFixed(2);
+    const scaleSize = (this.bmpsubVideoWindow.currentWidth() / this.currentSubtitle.track.bitmapsub.width).toFixed(2);
 
     this.bmpsubContainer.scaleTo(scaleSize);
   }
