@@ -24,7 +24,7 @@ function listenOn(target, eventName, assert) {
     done();
   });
 }
-QUnit.log((details) => console.log(`> ${details.module} >> ${details.name} : ${details.message}`));
+// QUnit.log((details) => console.log(`> ${details.module} >> ${details.name} : ${details.message}`));
 
 QUnit.module('basics', function(hooks) {
   QUnit.test('the environment is sane', function(assert) {
@@ -89,7 +89,7 @@ QUnit.module('videojs-bitmapsub simple', function(hooks) {
     const plg = player.bitmapsub();
 
     plg.on('dispose', event => {
-      assert.equal(spy.callCount, 1, 'plugin dispose when player dispose method is called');
+      assert.strictEqual(spy.callCount, 1, 'plugin dispose when player dispose method is called');
       assert.ok(plg.isDisposed(), 'plugin can say is disposed');
       done();
     });
@@ -105,11 +105,11 @@ QUnit.module('videojs-bitmapsub simple', function(hooks) {
     // plugin need to be ready before all
     plg.on('ready', event => {
       plg.bmpsubVideoWindow.on('ready', evt => {
-        assert.equal(spy.callCount, 1, 'scaleSubtitle() called on video window readiness event');
+        assert.strictEqual(spy.callCount, 1, 'scaleSubtitle() called on video window readiness event');
         done();
       });
       plg.bmpsubVideoWindow.on('videowindowresize', evt => {
-        assert.equal(spy.callCount, 2, 'scaleSubtitle() called on video window resize event');
+        assert.strictEqual(spy.callCount, 2, 'scaleSubtitle() called on video window resize event');
         done();
         player.dispose();
       });
@@ -121,7 +121,27 @@ QUnit.module('videojs-bitmapsub simple', function(hooks) {
 });
 
 QUnit.module('videojs-bitmapsub full', function(hooks) {
+
   hooks.beforeEach(function(assert) {
+    this.testPropertiesCallCount = 0;
+    /**
+     * test inline style properties on target DOM element
+     *
+    * @param {DOM} target dom element
+    * @param {Object} values object defining properties like {width="30px", height="50px"}
+    * @param {string} reference reference all to help distinguish test
+    */
+    this.testProperties = (target, values = {}, nothing, reference = '') => {
+      this.testPropertiesCallCount += 1;
+      Object.keys(values).forEach(property => {
+        assert.strictEqual(
+          target.style.getPropertyValue(property),
+          values[property],
+          `${this.testPropertiesCallCount}${reference}|inlineStyle property ${property}="${values[property]}"`
+        );
+      });
+    };
+
     // Mock the environment's timers because certain things - particularly
     // player readiness - are asynchronous in video.js 5. This MUST come
     // before any player is created; otherwise, timers could get created
@@ -138,7 +158,7 @@ QUnit.module('videojs-bitmapsub full', function(hooks) {
 
     source.setAttribute('src', '../../docs/samples/vobsub-sample.mp4');
     source.setAttribute('type', 'video/mp4');
-    track += '<track default src="../../docs/samples/vobsub.fre.vtt" kind="metadata" label="vobsub:720:Français" language="fre">';
+    track += '<track default src="../../docs/samples/vobsub.fre.vtt" kind="metadata" label="vobsub:1920:Français" language="fre">';
     track += '<track src="../../docs/samples/vobsub.fre.vtt" kind="metadata" label="not handle" language="fre">';
     track += '<track src="../../docs/samples/pgssub.eng.vtt" kind="metadata" label="pgssub:1920:English" language="eng">';
     video.appendChild(source);
@@ -165,6 +185,7 @@ QUnit.module('videojs-bitmapsub full', function(hooks) {
     if (this.player && !this.player.isDisposed()) {
       this.player.dispose();
     }
+    this.testPropertiesCallCount = 0;
     this.clock.restore();
   });
 
@@ -193,11 +214,11 @@ QUnit.module('videojs-bitmapsub full', function(hooks) {
 
       this.plg.currentSubtitle.track = undefined;
       this.plg.scaleSubtitle();
-      assert.equal(spy.callCount, 0, 'scaleTo method was not called');
+      assert.strictEqual(spy.callCount, 0, 'scaleTo method was not called');
 
       this.plg.currentSubtitle.track = { bitmapsub: { width: 1920 } };
       this.plg.scaleSubtitle();
-      assert.equal(spy.callCount, 1, 'scaleTo method was called once');
+      assert.strictEqual(spy.callCount, 1, 'scaleTo method was called once');
       done();
       spy.restore();
     });
@@ -209,22 +230,22 @@ QUnit.module('videojs-bitmapsub full', function(hooks) {
     const done = assert.async();
     const spy = sinon.spy(this.plg, 'updateBitmapMenu');
 
-    assert.equal(spy.callCount, 0, 'updateBitmapMenu not already called');
+    assert.strictEqual(spy.callCount, 0, 'updateBitmapMenu not already called');
 
     this.player.on('loadeddata', e => {
-      assert.equal(this.plg.bitmapTracks.length, 2, 'number of bitmap tracks');
+      assert.strictEqual(this.plg.bitmapTracks.length, 2, 'number of bitmap tracks');
       assert.equal(this.plg.bitmapTracks[0].mode, 'hidden', 'default track has mode "hidden"');
       assert.equal(this.plg.bitmapTracks[1].mode, 'disabled', 'default track has mode "disabled"');
-      assert.equal(this.plg.bitmapTracks[0].bitmapsub.width, '720', 'bitmapsub width "720"');
+      assert.equal(this.plg.bitmapTracks[0].bitmapsub.width, '1920', 'bitmapsub width "1920"');
       assert.equal(this.plg.bitmapTracks[1].bitmapsub.width, '1920', 'bitmapsub width "1920"');
 
-      assert.equal(spy.callCount, 1, 'updateBitmapMenu called on plugin initialization');
+      assert.strictEqual(spy.callCount, 1, 'updateBitmapMenu called on plugin initialization');
       this.player.textTracks().trigger('addtrack');
-      assert.equal(spy.callCount, 2, 'updateBitmapMenu after addtrack event');
+      assert.strictEqual(spy.callCount, 2, 'updateBitmapMenu after addtrack event');
       this.player.textTracks().trigger('change');
-      assert.equal(spy.callCount, 2, 'updateBitmapMenu not called with change event');
+      assert.strictEqual(spy.callCount, 2, 'updateBitmapMenu not called with change event');
       this.player.textTracks().trigger('removetrack');
-      assert.equal(spy.callCount, 3, 'updateBitmapMenu after removetrack event');
+      assert.strictEqual(spy.callCount, 3, 'updateBitmapMenu after removetrack event');
 
       assert.true(this.plg.bmpsubContainer.el().classList.contains('vobsub'), 'container className "vobsub" present');
       // Click on first menu item, first one is "bitmap-off"
@@ -246,19 +267,8 @@ QUnit.module('videojs-bitmapsub full', function(hooks) {
 
   QUnit.test('Video window size', function(assert) {
     const done = assert.async();
-    let currentCall = 1;
+    const testProperties = this.testProperties;
     let expectedValues = {};
-
-    const testProperties = (values, reference = '') => {
-      Object.keys(values).forEach(property => {
-        assert.equal(
-          this.plg.bmpsubVideoWindow.el().style.getPropertyValue(property),
-          values[property],
-          `${currentCall}${reference}|style property ${property}="${values[property]}"`
-        );
-      });
-      currentCall += 1;
-    };
 
     this.clock.tick(50);
 
@@ -269,7 +279,9 @@ QUnit.module('videojs-bitmapsub full', function(hooks) {
         'top': '', 'left': '',
         '--padding': '', '--adjustment': ''
       };
-      testProperties(expectedValues, '@initial');
+      const target = this.plg.bmpsubVideoWindow.el();
+
+      testProperties(target, expectedValues, assert, '@initial');
 
       // Change video player size ; wide
       [this.player.el().style.width, this.player.el().style.height] = ['500px', '200px'];
@@ -283,7 +295,7 @@ QUnit.module('videojs-bitmapsub full', function(hooks) {
       };
       // trigger event to run corresponding plugin method
       this.player.trigger('playerresize');
-      testProperties(expectedValues, '@wide');
+      testProperties(target, expectedValues, assert, '@wide');
 
       // Change video player size ; tall
       [this.player.el().style.width, this.player.el().style.height] = ['300px', '250px'];
@@ -297,7 +309,7 @@ QUnit.module('videojs-bitmapsub full', function(hooks) {
       };
       // trigger event to run corresponding plugin method
       this.player.trigger('playerresize');
-      testProperties(expectedValues, '@tall');
+      testProperties(target, expectedValues, assert, '@tall');
 
       // Change video player size ; tall with adjustment
       [this.player.el().style.width, this.player.el().style.height] = ['300px', '200px'];
@@ -311,11 +323,10 @@ QUnit.module('videojs-bitmapsub full', function(hooks) {
       };
       // trigger event to run corresponding plugin method
       this.player.trigger('playerresize');
-      testProperties(expectedValues, '@tall+adjustment');
+      testProperties(target, expectedValues, assert, '@tall+adjustment');
 
       // Change video player size to the video size
       [this.player.el().style.width, this.player.el().style.height] = [this.player.videoWidth() + 'px', this.player.videoHeight() + 'px'];
-      // [player.el().style.width, player.el().style.height] = ['100px', '100px'];
       expectedValues = {
         'width': '640px',
         'height': '360px',
@@ -325,61 +336,68 @@ QUnit.module('videojs-bitmapsub full', function(hooks) {
         '--adjustment': '30px'
       };
       this.player.trigger('playerresize');
-      testProperties(expectedValues, '@video size');
+      testProperties(target, expectedValues, assert, '@video size');
       done();
     });
   });
 
-  QUnit.test.only('updateSubtitle', function(assert) {
-    const [player, plg, clock] = [this.player, this.plg, this.clock];
-    const done = assert.async();
+  QUnit.test('updateSubtitle', function(assert) {
+    const [player, plg, clock, testProperties] = [this.player, this.plg, this.clock, this.testProperties];
+    const done = assert.async(2);
     const spy = sinon.spy(plg, 'updateSubtitle');
-    let currentCall = 0;
-
-    const testProperties = (target, values, reference = '') => {
-      currentCall += 1;
-      console.log(target.style.cssText);
-      Object.keys(values).forEach(property => {
-        assert.equal(
-          target.style.getPropertyValue(property),
-          values[property],
-          `${currentCall}${reference}|inlineStyle property ${property}="${values[property]}"`
-        );
-      });
-    };
 
     player.on('loadeddata', event => {
       // Default track is index 0 and a bitmap one
       const tt = player.textTracks()[0];
-      let expectedValues;
+      let expectedValues = {};
 
-      plg.currentSubtitle.track.on('cuechange', e => {
-        assert.equal(spy.callCount, 1, 'updateSubtitle() called once');
-
-        // test CSS properties on subtitle container element
-        expectedValues = { scale: 0.33, opacity: 1 };
-        testProperties(plg.bmpsubContainer.el(), expectedValues, '-container');
-
-        // test CSS properties on subtitle element
-        expectedValues = {
-          'width': '619px', 'height': '54px',
-          'background-image': 'url(\"../../docs/samples/sample1.01.vobsub.png\")',
-          'background-position': '-1620px -290px'
-        };
-        console.log(plg.subtitleElement);
-        testProperties(plg.subtitleElement, expectedValues, '-subtitleElement');
-
-        done();
-      });
+      // Wait until cuechange events finished
+      plg.currentSubtitle.track.on('cuechange', e => done());
+      // Set player size
       player.el().style.width = '640px';
       player.el().style.height = '360px';
+      // Trigger canplay to initialize bmpsubVideoWindow component size
+      player.trigger('canplay');
+      // Trigger playerresize to initialize bmpsubVideoWindow component size
       player.trigger('playerresize');
       plg.bmpsubVideoWindow.trigger('videowindowresize');
-      console.log(plg.bmpsubVideoWindow.el().style.cssText);
       clock.tick(10);
-      // fake first cue active
+      assert.strictEqual(plg.bmpsubContainer.el().style.opacity, '', 'Container style property opacity not present');
+
+      // fake first cue active at this time
       player.currentTime(2);
       tt.trigger('cuechange');
+      // test CSS properties on subtitle container element
+      expectedValues = { scale: '0.33', opacity: '1' };
+      testProperties(plg.bmpsubContainer.el(), expectedValues, assert, '-container');
+      // test CSS properties on subtitle element
+      expectedValues = {
+        'width': '619px', 'height': '54px',
+        'background-image': 'url(\"../../docs/samples/sample1.01.vobsub.png\")',
+        'background-position': '-1620px -290px'
+      };
+      testProperties(plg.subtitleElement, expectedValues, assert, '-subtitleElement');
+      // Check component visibility
+      assert.strictEqual(plg.bmpsubContainer.el().style.opacity, '1', 'Container style property opacity="1"');
+
+      // fake cue become disable at this time
+      player.currentTime(12.5);
+      tt.trigger('cuechange');
+      // test CSS properties on subtitle container element become hidden
+      expectedValues = { scale: '0.33', opacity: '0' };
+      testProperties(plg.bmpsubContainer.el(), expectedValues, assert, '-container');
+      // test CSS properties on subtitle element, no changes against previous test
+      expectedValues = {
+        'width': '619px', 'height': '54px',
+        'background-image': 'url(\"../../docs/samples/sample1.01.vobsub.png\")',
+        'background-position': '-1620px -290px'
+      };
+      testProperties(plg.subtitleElement, expectedValues, assert, '-subtitleElement');
+      // Check component visibility
+      assert.strictEqual(plg.bmpsubContainer.el().style.opacity, '0', 'Container style property opacity="0"');
+
+      // Check number of updateSubtitle() calls
+      assert.strictEqual(spy.callCount, 2, 'updateSubtitle() called twice');
     });
     clock.tick(50);
   });
