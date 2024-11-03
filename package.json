@@ -36,7 +36,7 @@
     "dev:css": "npm run build:css -- -w",
     "demo": "browser-sync start -c scripts/browser-sync.config.demo.js -s",
     "watch:dev": "cross-env-shell GNUK_DEV_WATCH=1 npm-run-all -p dev:css dev:js",
-    "test-plugin": "rollup -c scripts/rollup.config.js --environment TEST_BUNDLE_ONLY && karma start scripts/karma.conf.js ; cat test/dist/coverage/text.txt"
+    "test-plugin": "rollup -c scripts/rollup.config.js --environment TEST_BUNDLE_ONLY && GNUK_DEV_WATCH=1 karma start scripts/karma.conf.js ; cat test/dist/coverage/text.txt"
   },
   "devDependencies": {
     "@babel/cli": "^7.14.3",
