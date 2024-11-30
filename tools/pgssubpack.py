@@ -12,7 +12,7 @@ from collections import namedtuple
 
 cliParser=argparse.ArgumentParser(
     prog=os.path.basename(sys.argv[0]),
-    description='Read PGS (.sup) file and generate pack of subtitles images. You can optionnaly define number of rows and columns.',
+    description='Read PGS (extension .sup) file and generate pack of subtitles images. You can optionnaly define number of rows and columns.',
     epilog='Have bien le fun.'
 )
 cliParser.add_argument('filename')
