@@ -18,6 +18,10 @@ module.exports = {
       dir: `${workflow}/common/favicons/`
     },
     {
+      route: '/favicon.ico',
+      dir: `${workflow}/common/favicons/favicon.ico`
+    },
+    {
       route: '/plugin',
       dir: `${bitmapsub}dist/`
     },
@@ -40,7 +44,7 @@ module.exports = {
     { route: '/coverage', dir: `${bitmapsub}test/dist/coverage/` }
   ],
   watch: true,
-  server: true,
+  server: './dev/',
   ui: false,
   open: false,
   notify: false,
