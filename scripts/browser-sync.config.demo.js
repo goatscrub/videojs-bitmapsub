@@ -14,7 +14,11 @@ module.exports = {
     'dist/videojs-bitmapsub.css',
     'docs/index.html'
   ],
-  serveStatic: [{ route: '/videojs-bitmapsub', dir: 'docs/' }],
+  serveStatic: [
+    { route: '/videojs-bitmapsub', dir: 'docs/' },
+    { route: '/favicons', dir: `${workflow}/common/favicons/` },
+    { route: '/favicon.ico', dir: `${workflow}/common/favicons/favicon.ico` }
+  ],
   watch: true,
   server: true,
   ui: false,
@@ -25,15 +29,15 @@ module.exports = {
   listen: 'demo.videojs-bitmapsub.test',
   startPath: 'videojs-bitmapsub',
   online: false,
-  snippetOptions: {
-    // Provide a custom Regex for inserting the snippet.
-    rule: {
-      match: /<\/head>/i,
-      fn(snippet, match) {
-        return [debugJs, debugCss, snippet, match].join('\n');
-      }
-    }
-  },
+  // snippetOptions: {
+  //  // Provide a custom Regex for inserting the snippet.
+  //  rule: {
+  //    match: /<\/head>/i,
+  //    fn(snippet, match) {
+  //      return [debugJs, debugCss, snippet, match].join('\n');
+  //    }
+  //  }
+  // },
   rewriteRules: [
     {
       match: /https?:\/\/cdn\.jsdelivr\.net\/npm\/@goatscrub\/videojs-bitmapsub@latest\//ig,
