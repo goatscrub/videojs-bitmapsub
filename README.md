@@ -13,7 +13,12 @@ A video.js plugin helps you displaying bitmap subtitle type as image, like vobsu
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [How it works](#how-it-works)
-  - [JS & CSS](#js--css)
+- [Usage](#usage)
+  - [Prepare your data](#prepare-your-data)
+    - [DVD .vob and .idx files — tools/vobsubpack.php](#dvd-vob-and-idx-files--toolsvobsubpackphp)
+    - [Bluray pgssub — tools/pgssubpack.py](#bluray-pgssub--toolspgssubpackpy)
+  - [Installation](#installation)
+  - [Append JS & CSS](#append-js--css)
   - [Setting up plugin](#setting-up-plugin)
     - [Plugin options and defaults values](#plugin-options-and-defaults-values)
   - [Append metadata tracks](#append-metadata-tracks)
