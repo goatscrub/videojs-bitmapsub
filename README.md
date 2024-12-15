@@ -14,13 +14,13 @@ A video.js plugin helps you displaying bitmap subtitle type as image, like vobsu
 
 - [How it works](#how-it-works)
 - [Usage](#usage)
-  - [Prepare your data](#prepare-your-data)
-    - [DVD .vob and .idx files — tools/vobsubpack.php](#dvd-vob-and-idx-files--toolsvobsubpackphp)
-    - [Bluray pgssub — tools/pgssubpack.py](#bluray-pgssub--toolspgssubpackpy)
   - [Installation](#installation)
   - [Append JS & CSS](#append-js--css)
   - [Setting up plugin](#setting-up-plugin)
     - [Plugin options and defaults values](#plugin-options-and-defaults-values)
+  - [Prepare your data](#prepare-your-data)
+    - [DVD .vob and .idx files — tools/vobsubpack.php](#dvd-vob-and-idx-files--toolsvobsubpackphp)
+    - [Bluray pgssub — tools/pgssubpack.py](#bluray-pgssub--toolspgssubpackpy)
   - [Append metadata tracks](#append-metadata-tracks)
     - [Examples](#examples)
 - [What metadata track generated contains](#what-metadata-track-generated-contains)
@@ -39,8 +39,46 @@ This repository provide all you need to:
 
 > __**NOTE:**__ No OCR (Optical Character Recognition) involved into this process. Again, bitmap subtitles are displayed as images, and they are packed into bigger files only to avoid HTTP traffic, but it's not mandatory.
 ## Usage
+### Installation
+Install videojs-bitmapsub via npm:
+```sh
+$ npm install @goatscrub/videojs-bitmapsub
+```
+### Append JS & CSS
+Append CSS and javascript into your document.
+```html
+<link href="//path-plugin/dist/videojs-bitmapsub.min.css" rel="stylesheet" />
+<script src="//path-plugin/dist/videojs-bitmapsub.js"></script>
+```
+### Setting up plugin
+Passing options at player instance creation through `plugins` object:
+```js
+const player1 = videojs('sample', {
+  plugins: {
+    bitmapsub: { pathPrefix: '/images-subtitles/' }
+  }
+});
+```
+Passing options directly to plugin
+```js
+const player2 = videojs('sample');
+
+player2.bitmapsub({ pathPrefix: '/images-subtitles/' });
+```
+#### Plugin options and defaults values
+
+|name|default|description|
+|----|---|---|
+|pathPrefix|`'/bitmapsub/'`|web path to your subtitles packed images files|
+|labelPrefix|`''`|menu label prefix|
+|labelSuffix|`' ⋅BMP'`|menu label suffix|
+|name|bitmapsub|instance plugin name|
+
 ### Prepare your data
 Generate subtitles images packs with corresponding script from `tools/` folder.
+
+Set output folder to `pathPrefix` plugin option configuration value.
+
 #### DVD .vob and .idx files — tools/vobsubpack.php
 For DVD subtitles, two files are needed, a `.vob` and a `.idx`. With `tools/vobsubpack.php` you can specify one of them, second one is automaticaly find if they have same base name, only extension differs, eg: `vobsub.vob` and `vobsub.idx`.  
 It's an ugly script wrapper arround `sub2png` executable. (Why in PHP ?)  
@@ -85,41 +123,6 @@ options:
   -t TARGETDIRECTORY, --targetDirectory TARGETDIRECTORY
                         folder destination for files generated
 ```
-### Installation
-Install videojs-bitmapsub via npm:
-```sh
-$ npm install @goatscrub/videojs-bitmapsub
-```
-### Append JS & CSS
-Append CSS and javascript into your document.
-```html
-<link href="//path-plugin/dist/videojs-bitmapsub.min.css" rel="stylesheet" />
-<script src="//path-plugin/dist/videojs-bitmapsub.js"></script>
-```
-### Setting up plugin
-Two video.js classical ways, at video.js player creation:
-```js
-// On player creation
-const player1 = videojs('sample', {
-  plugins: {
-    bitmapsub: { pathPrefix: '/images-subtitles/' }
-  }
-});
-
-// Passing options directly to plugin
-const player2 = videojs('sample');
-
-player2.bitmapsub({ pathPrefix: '/images-subtitles/' });
-```
-#### Plugin options and defaults values
-
-|name|default|description|
-|----|---|---|
-|pathPrefix|`'/bitmapsub/'`|web path to your subtitles packed images files|
-|labelPrefix|`''`|menu label prefix|
-|labelSuffix|`' ⋅BMP'`|menu label suffix|
-|name|bitmapsub|instance plugin name|
-
 ### Append metadata tracks
 Bitmapsub plugin search for metadata tracks and filters them by specific label prefix. Label prefix is composed of `subtitle_type` follow by `video_size`, separated by colon.  
 So to be recognized correctly, your label must match format: `subtitle_type:video_width:track_label`, with subtitle type defined as follow:
@@ -131,7 +134,7 @@ So to be recognized correctly, your label must match format: `subtitle_type:vide
 #### Examples
 ```html
 <!-- DVD -->
-<track kind="metadata" label="pgssub:1920:english" language="eng" src="/webvtt-path/file.eng.vtt" />
+<track kind="metadata" label="vobsub:720:english" language="eng" src="/webvtt-path/file.eng.vtt" />
 
 <!-- Bluray -->
 <track kind="metadata" label="pgssub:1920:français" language="fre" src="/webvtt-path/file.fre.vtt" />
@@ -147,9 +150,13 @@ NOTE Cue format: bitmap-file.png:width:height:driftX:driftY
 
 1
 00:00:49.760 --> 00:00:51.239
-sample_file.1.vobsub.png 73:22:0:0
+sample_file.1.vobsub.png:73:22:0:0
 
 [...]
+
+1984
+02:04:05.237 --> 02:04:06.655
+sample_file.137.vobsub.png:286:61:0:108
 ```
 ## [WIP]
 - settings panel
